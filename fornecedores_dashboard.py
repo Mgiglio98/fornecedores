@@ -7,10 +7,12 @@ import plotly.express as px
 st.markdown("""
     <style>
     .metric-box {
+        background-color: #f4f4f4;  /* ✅ fundo claro fixo */
+        color: #000000;
         padding: 20px;
         border-radius: 12px;
         text-align: center;
-        box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
         transition: all 0.3s ease;
     }
     
@@ -21,28 +23,7 @@ st.markdown("""
     
     .metric-box small {
         font-size: 14px;
-    }
-    
-    /* 🎨 Modo CLARO */
-    @media (prefers-color-scheme: light) {
-        .metric-box {
-            background-color: #f4f4f4;
-            color: #000000;
-        }
-        .metric-box small {
-            color: #444444;
-        }
-    }
-    
-    /* 🌑 Modo ESCURO */
-    @media (prefers-color-scheme: dark) {
-        .metric-box {
-            background-color: #1e1e1e;
-            color: #ffffff;
-        }
-        .metric-box small {
-            color: #bbbbbb;
-        }
+        color: #444444;
     }
     </style>
 
