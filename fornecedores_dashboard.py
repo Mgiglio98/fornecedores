@@ -2,50 +2,43 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 import plotly.express as px
+from streamlit.runtime.scriptrunner import get_script_run_ctx
 
-# --- Estilo customizado ---
-st.markdown("""
+def tema_escuro_ativo():
+    try:
+        return st.runtime.scriptrunner.get_script_run_ctx().session.theme == "dark"
+    except:
+        return False
+        
+if tema_escuro_ativo():
+    cor_fundo = "#2a2a2a"  # cinza escuro suave
+    cor_texto = "#ffffff"
+    cor_subtitulo = "#cccccc"
+else:
+    cor_fundo = "#f4f4f4"  # cinza claro
+    cor_texto = "#000000"
+    cor_subtitulo = "#444444"
+
+st.markdown(f"""
     <style>
-    .metric-box {
+    .metric-box {{
+        background-color: {cor_fundo};
+        color: {cor_texto};
         padding: 20px;
         border-radius: 12px;
         text-align: center;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
         transition: all 0.3s ease;
-    }
-    
-    .metric-box h1 {
+    }}
+    .metric-box h1 {{
         font-size: 36px;
         margin: 0;
-    }
-    
-    .metric-box small {
+    }}
+    .metric-box small {{
         font-size: 14px;
-    }
-    
-    /* 🌞 Modo Claro */
-    @media (prefers-color-scheme: light) {
-        .metric-box {
-            background-color: #f4f4f4;
-            color: #000000;
-        }
-        .metric-box small {
-            color: #444444;
-        }
-    }
-    
-    /* 🌙 Modo Escuro */
-    @media (prefers-color-scheme: dark) {
-        .metric-box {
-            background-color: #2a2a2a;  /* <-- CINZA ESCURO SUAVE */
-            color: #ffffff;
-        }
-        .metric-box small {
-            color: #cccccc;
-        }
-    }
+        color: {cor_subtitulo};
+    }}
     </style>
-
 """, unsafe_allow_html=True)
 
 # --- Configuração da Página ---
