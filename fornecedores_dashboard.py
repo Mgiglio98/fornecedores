@@ -36,8 +36,8 @@ st.markdown("---")
 @st.cache_data
 def carregar_dados():
     df_forn = pd.read_excel("FornecedoresAtivos.xlsx", sheet_name=0)
-    df_pedidos = pd.read_excel("UltForn.xlsx", sheet_name=0)
-    return df_forn, df_pedidos
+    df_ped = pd.read_excel("UltForn.xlsx", sheet_name=0)
+    return df_forn, df_ped
 
 df, df_pedidos = carregar_dados()
 
@@ -46,18 +46,18 @@ df["FORN_DTCADASTRO"] = pd.to_datetime(df["FORN_DTCADASTRO"], errors="coerce")
 df["CNPJ_FORMATADO"] = df["FORN_CNPJ"].astype(str).str.zfill(14).str.replace(
     r"(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})", r"\1.\2.\3/\4-\5", regex=True
 )
-
 df_pedidos["PED_DT"] = pd.to_datetime(df_pedidos["PED_DT"], errors="coerce")
 
-# --- Cruzamento com data do último pedido ---
-df_ultimos_usos = df_pedidos.groupby("PED_FORNECEDOR")["PED_DT"].max().reset_index()
-df_ultimos_usos.rename(columns={"PED_DT": "ULTIMO_PEDIDO", "PED_FORNECEDOR": "FORN_CNPJ"}, inplace=True)
+# --- Cruzamento: Último Pedido por fornecedor ---
+df_ultimos = df_pedidos.groupby("PED_FORNECEDOR")["PED_DT"].max().reset_index()
+df_ultimos.rename(columns={"PED_DT": "ULTIMO_PEDIDO", "PED_FORNECEDOR": "FORN_CNPJ"}, inplace=True)
 
-# Padronizar tipo do FORN_CNPJ
+# Garantir que CNPJ seja string
 df["FORN_CNPJ"] = df["FORN_CNPJ"].astype(str)
-df_ultimos_usos["FORN_CNPJ"] = df_ultimos_usos["FORN_CNPJ"].astype(str)
+df_ultimos["FORN_CNPJ"] = df_ultimos["FORN_CNPJ"].astype(str)
 
-df = df.merge(df_ultimos_usos, how="left", on="FORN_CNPJ")
+# Merge para trazer a info de último pedido
+df = df.merge(df_ultimos, how="left", on="FORN_CNPJ")
 
 # --- Filtros ---
 col1, col2, col3 = st.columns(3)
@@ -101,10 +101,10 @@ with col4:
     """, unsafe_allow_html=True)
 
 with col5:
-    recentes_filtrados = df_filtrado[df_filtrado["FORN_DTCADASTRO"] >= pd.Timestamp.now() - pd.DateOffset(days=30)]
+    recentes = df_filtrado[df_filtrado["FORN_DTCADASTRO"] >= pd.Timestamp.now() - pd.DateOffset(days=30)]
     st.markdown(f"""
         <div class="metric-box">
-            <h1>{len(recentes_filtrados)}</h1>
+            <h1>{len(recentes)}</h1>
             <small>Cadastrados nos últimos 30 dias</small>
         </div>
     """, unsafe_allow_html=True)
@@ -118,10 +118,9 @@ with col6:
         </div>
     """, unsafe_allow_html=True)
 
-# --- Tabela final ---
+# --- Tabela ---
 df_filtrado = df_filtrado.sort_values(by="FORN_DTCADASTRO", ascending=False)
 
-# Criar tabela base
 tabela = df_filtrado[[ 
     "FORN_RAZAO", "FORN_FANTASIA", "FORN_UF", "FORN_DTCADASTRO"
 ]].rename(columns={
@@ -131,14 +130,10 @@ tabela = df_filtrado[[
     "FORN_DTCADASTRO": "Data de Cadastro"
 })
 
-# Adiciona a coluna de Último Pedido (apenas se houver)
 tabela["Último Pedido"] = df_filtrado["ULTIMO_PEDIDO"].dt.strftime('%d/%m/%Y')
 tabela["Último Pedido"] = tabela["Último Pedido"].where(df_filtrado["ULTIMO_PEDIDO"].notna(), "")
-
-# Formatar datas
 tabela["Data de Cadastro"] = pd.to_datetime(tabela["Data de Cadastro"]).dt.strftime('%d/%m/%Y')
 
-# --- Exibição ---
 st.markdown("---")
 st.dataframe(tabela, use_container_width=True)
 
@@ -149,10 +144,8 @@ df_top = df_pedidos.copy()
 df_top["PED_FORNECEDOR"] = df_top["PED_FORNECEDOR"].astype(str)
 df["FORN_CNPJ"] = df["FORN_CNPJ"].astype(str)
 
-# Juntando o nome fantasia
 df_top = df_top.merge(df[["FORN_CNPJ", "FORN_FANTASIA"]], left_on="PED_FORNECEDOR", right_on="FORN_CNPJ", how="inner")
 
-# Contagem
 top10 = (
     df_top.groupby("FORN_FANTASIA")
     .size()
@@ -161,7 +154,6 @@ top10 = (
     .head(10)
 )
 
-# Gráfico com gradiente
 fig = px.bar(
     top10,
     x="Quantidade de Pedidos",
@@ -169,7 +161,7 @@ fig = px.bar(
     orientation="h",
     text="Quantidade de Pedidos",
     color="Quantidade de Pedidos",
-    color_continuous_scale=["#7FC7FF", "#0066CC"],  # gradiente azul claro → azul escuro
+    color_continuous_scale=["#7FC7FF", "#0066CC"],
     category_orders={"FORN_FANTASIA": top10["FORN_FANTASIA"].tolist()}
 )
 
@@ -183,10 +175,9 @@ fig.update_layout(
 )
 
 fig.update_traces(textposition="outside")
-
 st.plotly_chart(fig, use_container_width=True)
 
-# --- Exportação Excel ---
+# --- Exportar para Excel ---
 def converter_excel(df):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
