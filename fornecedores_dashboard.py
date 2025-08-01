@@ -11,6 +11,7 @@ st.markdown("""
         border-radius: 12px;
         text-align: center;
         box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
     }
     
     .metric-box h1 {
@@ -22,7 +23,7 @@ st.markdown("""
         font-size: 14px;
     }
     
-    /* Tema claro */
+    /* 🎨 Modo CLARO */
     @media (prefers-color-scheme: light) {
         .metric-box {
             background-color: #f4f4f4;
@@ -33,7 +34,7 @@ st.markdown("""
         }
     }
     
-    /* Tema escuro */
+    /* 🌑 Modo ESCURO */
     @media (prefers-color-scheme: dark) {
         .metric-box {
             background-color: #1e1e1e;
