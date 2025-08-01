@@ -6,23 +6,25 @@ import plotly.express as px
 # --- Estilo customizado ---
 st.markdown("""
     <style>
-    .metric-box {
-        background-color: #f4f4f4; /* fundo claro */
-        color: #000000; /* texto escuro */
-        padding: 20px;
-        border-radius: 12px;
-        text-align: center;
-        box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+    @media (prefers-color-scheme: dark) {
+      .metric-box {
+        background-color: #1e1e1e;
+        color: #ffffff;
+      }
+      .metric-box small {
+        color: #bbbbbb;
+      }
     }
-    .metric-box h1 {
-        font-size: 36px;
-        margin: 0;
-    }
-    .metric-box small {
-        font-size: 14px;
+    @media (prefers-color-scheme: light) {
+      .metric-box {
+        background-color: #f4f4f4;
+        color: #000000;
+      }
+      .metric-box small {
         color: #444444;
+      }
     }
-</style>
+    </style>
 
 """, unsafe_allow_html=True)
 
