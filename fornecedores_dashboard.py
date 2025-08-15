@@ -1,24 +1,29 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 from io import BytesIO
-import plotly.express as px
 from streamlit.runtime.scriptrunner import get_script_run_ctx
+from datetime import datetime
 
+# =========================
+# Tema
+# =========================
 def tema_escuro_ativo():
     try:
         return st.runtime.scriptrunner.get_script_run_ctx().session.theme == "dark"
     except:
         return False
-        
+
 if tema_escuro_ativo():
-    cor_fundo = "#2a2a2a"  # cinza escuro suave
+    cor_fundo = "#2a2a2a"
     cor_texto = "#ffffff"
     cor_subtitulo = "#cccccc"
 else:
-    cor_fundo = "#f4f4f4"  # cinza claro
+    cor_fundo = "#f4f4f4"
     cor_texto = "#000000"
     cor_subtitulo = "#444444"
 
+st.set_page_config(page_title="Fornecedores Ativos", layout="wide")
 st.markdown(f"""
     <style>
     .metric-box {{
@@ -41,12 +46,12 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Configuração da Página ---
-st.set_page_config(page_title="Fornecedores Ativos", layout="wide")
 st.markdown("<h1 style='text-align: center;'>📦 Painel de Fornecedores Ativos</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# --- Carregar os dados ---
+# =========================
+# Carregar dados
+# =========================
 @st.cache_data
 def carregar_dados():
     df_forn = pd.read_excel("FornecedoresAtivos.xlsx", sheet_name=0)
@@ -55,119 +60,266 @@ def carregar_dados():
 
 df, df_pedidos = carregar_dados()
 
-# --- Tratamento das colunas ---
+# =========================
+# Tratamento / normalização
+# =========================
 df["FORN_DTCADASTRO"] = pd.to_datetime(df["FORN_DTCADASTRO"], errors="coerce")
-df["CNPJ_FORMATADO"] = df["FORN_CNPJ"].astype(str).str.zfill(14).str.replace(
+df["FORN_CNPJ"] = df["FORN_CNPJ"].astype(str).str.replace(r"\D", "", regex=True).str.zfill(14)
+df["CNPJ_FORMATADO"] = df["FORN_CNPJ"].str.replace(
     r"(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})", r"\1.\2.\3/\4-\5", regex=True
 )
+df["FORN_UF"] = df["FORN_UF"].astype(str).str.upper().str.strip()
+
 df_pedidos["PED_DT"] = pd.to_datetime(df_pedidos["PED_DT"], errors="coerce")
+df_pedidos["PED_FORNECEDOR"] = df_pedidos["PED_FORNECEDOR"].astype(str).str.replace(r"\D", "", regex=True).str.zfill(14)
 
-# --- Cruzamento: Último Pedido por fornecedor ---
-df_ultimos = df_pedidos.groupby("PED_FORNECEDOR")["PED_DT"].max().reset_index()
-df_ultimos.rename(columns={"PED_DT": "ULTIMO_PEDIDO", "PED_FORNECEDOR": "FORN_CNPJ"}, inplace=True)
+# Último pedido por fornecedor (global, antes de filtros)
+ult = (df_pedidos.dropna(subset=["PED_DT"])
+       .groupby("PED_FORNECEDOR", as_index=False)["PED_DT"].max()
+       .rename(columns={"PED_FORNECEDOR": "FORN_CNPJ", "PED_DT": "ULTIMO_PEDIDO"}))
 
-# Garantir que CNPJ seja string
-df["FORN_CNPJ"] = df["FORN_CNPJ"].astype(str)
-df_ultimos["FORN_CNPJ"] = df_ultimos["FORN_CNPJ"].astype(str)
+df = df.merge(ult, how="left", on="FORN_CNPJ")
 
-# Merge para trazer a info de último pedido
-df = df.merge(df_ultimos, how="left", on="FORN_CNPJ")
-
-# --- Filtros ---
+# =========================
+# Filtros
+# =========================
 col1, col2, col3 = st.columns(3)
 
-ufs = col1.multiselect("Filtrar por UF:", sorted(df["FORN_UF"].dropna().unique()), placeholder="Selecione o estado")
+ufs = col1.multiselect(
+    "Filtrar por UF:",
+    sorted(df["FORN_UF"].dropna().unique()),
+    placeholder="Selecione o estado"
+)
 
-todas_categorias = df["CATEGORIAS"].dropna().str.split(",").explode().str.strip().unique()
-categorias = col2.multiselect("Filtrar por Categoria:", sorted(todas_categorias), placeholder="Escolha uma categoria")
+# categorias vêm em string separada por vírgulas (ex.: "Elétrico, Hidráulico")
+todas_categorias = (
+    df["CATEGORIAS"]
+    .dropna()
+    .astype(str)
+    .str.split(",")
+    .explode()
+    .str.strip()
+    .replace("", pd.NA)
+    .dropna()
+    .unique()
+)
+categorias = col2.multiselect(
+    "Filtrar por Categoria:",
+    sorted(todas_categorias),
+    placeholder="Escolha uma categoria"
+)
 
 data_ini, data_fim = col3.date_input(
     "Filtrar por período de cadastro:",
-    value=(df["FORN_DTCADASTRO"].min(), df["FORN_DTCADASTRO"].max())
+    value=(df["FORN_DTCADASTRO"].min().date() if pd.notna(df["FORN_DTCADASTRO"].min()) else datetime.today().date(),
+           df["FORN_DTCADASTRO"].max().date() if pd.notna(df["FORN_DTCADASTRO"].max()) else datetime.today().date())
 )
 
-# --- Aplicar filtros ---
+# Aplicar filtros
 df_filtrado = df.copy()
 
 if ufs:
     df_filtrado = df_filtrado[df_filtrado["FORN_UF"].isin(ufs)]
 
 if categorias:
-    df_filtrado = df_filtrado[df_filtrado["CATEGORIAS"]
-        .apply(lambda x: any(cat in x for cat in categorias) if isinstance(x, str) else False)
+    df_filtrado = df_filtrado[
+        df_filtrado["CATEGORIAS"].apply(
+            lambda x: any(cat in str(x) for cat in categorias)
+        )
     ]
 
 if data_ini and data_fim:
+    di = pd.to_datetime(data_ini)
+    df_ = pd.to_datetime(data_fim)  # nome diferente para não colidir
     df_filtrado = df_filtrado[
-        (df_filtrado["FORN_DTCADASTRO"] >= pd.to_datetime(data_ini)) &
-        (df_filtrado["FORN_DTCADASTRO"] <= pd.to_datetime(data_fim))
+        (df_filtrado["FORN_DTCADASTRO"] >= di) &
+        (df_filtrado["FORN_DTCADASTRO"] <= df_)
     ]
 
-# --- Métricas ---
-col4, col5, col6 = st.columns(3)
+# =========================
+# Janelas de tempo (hoje, 12m, 30d, 90d)
+# =========================
+hoje = pd.Timestamp.today().normalize()
+h12m = hoje - pd.DateOffset(months=12)
+h30d = hoje - pd.Timedelta(days=30)
+h90d = hoje - pd.Timedelta(days=90)
 
-with col4:
+# CNPJ set após filtros (para cruzar com pedidos)
+cnpjs_filtrados = set(df_filtrado["FORN_CNPJ"].astype(str))
+
+# Pedidos filtrados pelo universo e por 12m (para métricas e Top 10)
+ped_12m = df_pedidos[
+    (df_pedidos["PED_FORNECEDOR"].isin(cnpjs_filtrados)) &
+    (df_pedidos["PED_DT"] >= h12m)
+].copy()
+
+# Flag ativos 12m (com base em ULTIMO_PEDIDO >= h12m)
+df_filtrado["ATIVO_12M"] = df_filtrado["ULTIMO_PEDIDO"].ge(h12m)
+
+# Dias desde último pedido (NaT -> NaN)
+df_filtrado["DIAS_DESDE_ULTIMO"] = (hoje - df_filtrado["ULTIMO_PEDIDO"]).dt.days
+
+# =========================
+# Métricas
+# =========================
+total_forn = int(df_filtrado["FORN_CNPJ"].nunique())
+
+cadastrados_30d = int(
+    df_filtrado.loc[df_filtrado["FORN_DTCADASTRO"].ge(h30d), "FORN_CNPJ"].nunique()
+)
+
+usados_12m = int(
+    df_filtrado.loc[df_filtrado["ATIVO_12M"], "FORN_CNPJ"].nunique()
+)
+pct_ativos_12m = (usados_12m / total_forn) if total_forn else 0.0
+
+# Novos com uso (30 dias): cadastrados nos últimos 30 dias E com pelo menos 1 pedido em qualquer data
+novos_com_uso_30d = int(
+    df_filtrado.loc[
+        df_filtrado["FORN_DTCADASTRO"].ge(h30d) & df_filtrado["ULTIMO_PEDIDO"].notna(),
+        "FORN_CNPJ"
+    ].nunique()
+)
+
+# Tempo médio desde o último pedido (dias) – considera apenas quem tem ULTIMO_PEDIDO
+tempo_medio_sem_uso = float(df_filtrado["DIAS_DESDE_ULTIMO"].dropna().mean()) if df_filtrado["DIAS_DESDE_ULTIMO"].notna().any() else 0.0
+
+# Risco de inatividade: sem uso há ≥ 90 dias (NaT conta como risco)
+risco_inatividade_90d = int(
+    df_filtrado.loc[
+        (df_filtrado["ULTIMO_PEDIDO"].isna()) | (df_filtrado["ULTIMO_PEDIDO"] < h90d),
+        "FORN_CNPJ"
+    ].nunique()
+)
+
+# Concentração 80/20 (Pareto por quantidade de pedidos nos últimos 12 meses)
+contagens = ped_12m.groupby("PED_FORNECEDOR").size().sort_values(ascending=False)
+total_ped_12m = int(contagens.sum())
+if total_ped_12m > 0:
+    acum = contagens.cumsum() / total_ped_12m
+    n_fornecedores_para_80 = int(np.searchsorted(acum.values, 0.80, side="left") + 1)
+    fornecedores_usados_12m = int(contagens.shape[0])
+else:
+    n_fornecedores_para_80 = 0
+    fornecedores_usados_12m = 0
+
+# =========================
+# KPIs – Linha 1
+# =========================
+c1, c2, c3 = st.columns(3)
+with c1:
     st.markdown(f"""
         <div class="metric-box">
-            <h1>{len(df_filtrado)}</h1>
-            <small>Total de Fornecedores (após filtro)</small>
+            <h1>{total_forn}</h1>
+            <small>Total de Fornecedores (após filtros)</small>
         </div>
     """, unsafe_allow_html=True)
 
-with col5:
-    recentes = df_filtrado[df_filtrado["FORN_DTCADASTRO"] >= pd.Timestamp.now() - pd.DateOffset(days=30)]
+with c2:
     st.markdown(f"""
         <div class="metric-box">
-            <h1>{len(recentes)}</h1>
+            <h1>{cadastrados_30d}</h1>
             <small>Cadastrados nos últimos 30 dias</small>
         </div>
     """, unsafe_allow_html=True)
 
-with col6:
-    usados = df_filtrado[df_filtrado["ULTIMO_PEDIDO"].notnull()]
+with c3:
     st.markdown(f"""
         <div class="metric-box">
-            <h1>{len(usados)}</h1>
-            <small>Fornecedores usados nos últimos 12 meses</small>
+            <h1>{usados_12m}</h1>
+            <small>Usados nos últimos 12 meses</small>
         </div>
     """, unsafe_allow_html=True)
 
-# --- Tabela ---
+# KPIs – Linha 2 (novas métricas)
+d1, d2, d3, d4 = st.columns(4)
+with d1:
+    st.markdown(f"""
+        <div class="metric-box">
+            <h1>{pct_ativos_12m:.0%}</h1>
+            <small>% Fornecedores ativos (12m)</small>
+        </div>
+    """, unsafe_allow_html=True)
+
+with d2:
+    st.markdown(f"""
+        <div class="metric-box">
+            <h1>{novos_com_uso_30d}</h1>
+            <small>Novos (30d) com uso</small>
+        </div>
+    """, unsafe_allow_html=True)
+
+with d3:
+    st.markdown(f"""
+        <div class="metric-box">
+            <h1>{tempo_medio_sem_uso:.0f} d</h1>
+            <small>Tempo médio desde o último pedido</small>
+        </div>
+    """, unsafe_allow_html=True)
+
+with d4:
+    cap_80 = f"{n_fornecedores_para_80}/{fornecedores_usados_12m}" if fornecedores_usados_12m else "0/0"
+    st.markdown(f"""
+        <div class="metric-box">
+            <h1>{cap_80}</h1>
+            <small>Concentração 80% dos pedidos (12m)</small>
+        </div>
+    """, unsafe_allow_html=True)
+
+# Alerta simples (opcional): muitos inativos
+if total_forn and (risco_inatividade_90d / total_forn) >= 0.3:
+    st.warning(f"Atenção: {risco_inatividade_90d} fornecedores (≈{risco_inatividade_90d/total_forn:.0%}) sem uso há ≥ 90 dias.")
+
+st.divider()
+
+# =========================
+# Tabela principal
+# =========================
 df_filtrado = df_filtrado.sort_values(by="FORN_DTCADASTRO", ascending=False)
 
-tabela = df_filtrado[[ 
-    "FORN_RAZAO", "FORN_FANTASIA", "FORN_UF", "FORN_DTCADASTRO"
+tabela = df_filtrado[[
+    "FORN_RAZAO", "FORN_FANTASIA", "FORN_UF", "FORN_DTCADASTRO", "ULTIMO_PEDIDO", "DIAS_DESDE_ULTIMO", "ATIVO_12M"
 ]].rename(columns={
     "FORN_RAZAO": "Razão Social",
     "FORN_FANTASIA": "Nome Fantasia",
     "FORN_UF": "UF",
-    "FORN_DTCADASTRO": "Data de Cadastro"
+    "FORN_DTCADASTRO": "Data de Cadastro",
+    "ULTIMO_PEDIDO": "Último Pedido",
+    "DIAS_DESDE_ULTIMO": "Dias desde o Último Pedido",
+    "ATIVO_12M": "Ativo (12m)"
 })
 
-tabela["Último Pedido"] = df_filtrado["ULTIMO_PEDIDO"].dt.strftime('%d/%m/%Y')
-tabela["Último Pedido"] = tabela["Último Pedido"].where(df_filtrado["ULTIMO_PEDIDO"].notna(), "")
 tabela["Data de Cadastro"] = pd.to_datetime(tabela["Data de Cadastro"]).dt.strftime('%d/%m/%Y')
+tabela["Último Pedido"] = pd.to_datetime(tabela["Último Pedido"]).dt.strftime('%d/%m/%Y')
+tabela.loc[tabela["Último Pedido"] == "NaT", "Último Pedido"] = ""
 
-st.markdown("---")
+st.subheader("Fornecedores (cadastro + último uso)")
 st.dataframe(tabela, use_container_width=True)
+st.markdown("---")
 
-# --- Top 10 Fornecedores ---
+# =========================
+# Top 10 fornecedores (12m) – respeita filtros
+# =========================
 st.markdown("### 🏆 Top 10 Fornecedores Mais Utilizados nos Últimos 12 Meses")
 
-df_top = df_pedidos.copy()
-df_top["PED_FORNECEDOR"] = df_top["PED_FORNECEDOR"].astype(str)
-df["FORN_CNPJ"] = df["FORN_CNPJ"].astype(str)
-
-df_top = df_top.merge(df[["FORN_CNPJ", "FORN_FANTASIA"]], left_on="PED_FORNECEDOR", right_on="FORN_CNPJ", how="inner")
+# Pedidos 12m já filtrados por CNPJs da visão
+df_top = ped_12m.merge(
+    df[["FORN_CNPJ", "FORN_FANTASIA"]],
+    left_on="PED_FORNECEDOR",
+    right_on="FORN_CNPJ",
+    how="left"
+)
 
 top10 = (
-    df_top.groupby("FORN_FANTASIA")
+    df_top.groupby("FORN_FANTASIA", dropna=False)
     .size()
     .reset_index(name="Quantidade de Pedidos")
     .sort_values(by="Quantidade de Pedidos", ascending=False)
     .head(10)
 )
 
+# Plotly
+import plotly.express as px
 fig = px.bar(
     top10,
     x="Quantidade de Pedidos",
@@ -178,24 +330,24 @@ fig = px.bar(
     color_continuous_scale=["#7FC7FF", "#0066CC"],
     category_orders={"FORN_FANTASIA": top10["FORN_FANTASIA"].tolist()}
 )
-
 fig.update_layout(
     yaxis_title="Fornecedor",
     xaxis_title="Quantidade de Pedidos",
     showlegend=False,
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)",
-    font=dict(color="white")
+    font=dict(color=cor_texto)
 )
-
 fig.update_traces(textposition="outside")
 st.plotly_chart(fig, use_container_width=True)
 
-# --- Exportar para Excel ---
-def converter_excel(df):
+# =========================
+# Exportar Excel
+# =========================
+def converter_excel(df_export):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Fornecedores')
+        df_export.to_excel(writer, index=False, sheet_name='Fornecedores')
     return output.getvalue()
 
 excel_bytes = converter_excel(tabela)
