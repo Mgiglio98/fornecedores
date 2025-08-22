@@ -312,10 +312,9 @@ df_uf_plot = pd.DataFrame({
     "UF": ["RJ","SC","SP","Outras"],
     "Fornecedores": [rj, sc, sp, outras]
 })
-
 # opcional: ordenar por valor desc
-df_uf_plot = df_uf_plot.sort_values("Fornecedores", ascending=False).set_index("UF")
-st.bar_chart(df_uf_plot)
+df_uf_plot = df_uf_plot.sort_values("Fornecedores", ascending=False)
+st.bar_chart(df_uf_plot.set_index("UF"))
 
 st.markdown("### 🧩 Distribuição por Categoria (após filtros)")
 cats = (
@@ -327,9 +326,9 @@ cats = (
     .str.strip()
 )
 cats = cats[cats.ne("")]  # remove vazios
-
-dist_cat = cats.value_counts().head(15)  # já vem desc
-st.bar_chart(dist_cat.to_frame("Fornecedores"))
+dist_cat = cats.value_counts().head(15)  # já desc
+# garante ordem desc no gráfico
+st.bar_chart(dist_cat.sort_values(ascending=False).to_frame("Fornecedores"))
 
 st.markdown("### 🏆 Top 10 Fornecedores Mais Utilizados nos Últimos 12 Meses")
 # Plotly
