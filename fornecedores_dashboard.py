@@ -303,6 +303,7 @@ top10 = (
 # =========================
 # 📍 Distribuição por UF (após filtros) — vertical + desc + "Outras"
 # =========================
+st.markdown("### 📍 Distribuição por UF (após filtros)")
 alvo = {"RJ", "SC", "SP"}
 contagem = df_filtrado["FORN_UF"].value_counts(dropna=False)
 
@@ -338,6 +339,7 @@ st.plotly_chart(fig_uf, use_container_width=True)
 # =========================
 # 🧩 Distribuição por Categoria (após filtros) — remove NaN + DESC
 # =========================
+st.markdown("### 🧩 Distribuição por Categoria (após filtros)")
 cats = (
     df_filtrado["CATEGORIAS"]
     .dropna()
