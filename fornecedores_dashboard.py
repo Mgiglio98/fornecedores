@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from io import BytesIO
-from streamlit.runtime.scriptrunner import get_script_run_ctx
 from datetime import datetime
 
 # =========================
@@ -23,7 +22,7 @@ else:
     cor_texto = "#000000"
     cor_subtitulo = "#444444"
 
-st.set_page_config(page_title="Fornecedores Ativos", layout="wide")
+st.set_page_config(page_title="Fornecedores Ativos", page_icon="📦", layout="wide")
 st.markdown(f"""
     <style>
     .metric-box {{
@@ -52,7 +51,7 @@ st.markdown("---")
 # =========================
 # Carregar dados
 # =========================
-@st.cache_data
+@st.cache_data(ttl=900)
 def carregar_dados():
     df_forn = pd.read_excel("FornecedoresAtivos.xlsx", sheet_name=0)
     df_ped = pd.read_excel("UltForn.xlsx", sheet_name=0)
@@ -63,6 +62,11 @@ df, df_pedidos = carregar_dados()
 # =========================
 # Tratamento / normalização
 # =========================
+# chaves/strings estáveis
+df["FORN_RAZAO"] = df["FORN_RAZAO"].astype(str).str.strip()
+df["FORN_FANTASIA"] = df["FORN_FANTASIA"].astype(str).str.strip()
+df["CATEGORIAS"] = df["CATEGORIAS"].astype(str).str.upper().str.strip()
+df_pedidos["PED_FORNECEDOR"] = df_pedidos["PED_FORNECEDOR"].astype(str)
 df["FORN_DTCADASTRO"] = pd.to_datetime(df["FORN_DTCADASTRO"], errors="coerce")
 df["FORN_CNPJ"] = df["FORN_CNPJ"].astype(str).str.replace(r"\D", "", regex=True).str.zfill(14)
 df["CNPJ_FORMATADO"] = df["FORN_CNPJ"].str.replace(
@@ -122,19 +126,21 @@ if ufs:
     df_filtrado = df_filtrado[df_filtrado["FORN_UF"].isin(ufs)]
 
 if categorias:
-    df_filtrado = df_filtrado[
-        df_filtrado["CATEGORIAS"].apply(
-            lambda x: any(cat in str(x) for cat in categorias)
-        )
-    ]
+    categorias_set = set([c.upper() for c in categorias])
+    def tem_intersec(x):
+        if pd.isna(x): 
+            return False
+        tokens = [t.strip().upper() for t in str(x).split(",") if t.strip()]
+        return bool(set(tokens) & categorias_set)
+    df_filtrado = df_filtrado[df_filtrado["CATEGORIAS"].apply(tem_intersec)]
 
 if data_ini and data_fim:
     di = pd.to_datetime(data_ini)
-    df_ = pd.to_datetime(data_fim)  # nome diferente para não colidir
-    df_filtrado = df_filtrado[
-        (df_filtrado["FORN_DTCADASTRO"] >= di) &
-        (df_filtrado["FORN_DTCADASTRO"] <= df_)
-    ]
+    dt_fim = pd.to_datetime(data_fim)
+    df_filtrado = df_filtrado[(df_filtrado["FORN_DTCADASTRO"] >= di) & (df_filtrado["FORN_DTCADASTRO"] <= dt_fim)]
+
+if st.button("🔄 Resetar filtros"):
+    st.rerun()
 
 # =========================
 # Janelas de tempo (hoje, 12m, 30d, 90d)
@@ -183,6 +189,10 @@ novos_com_uso_30d = int(
 
 # Tempo médio desde o último pedido (dias) – considera apenas quem tem ULTIMO_PEDIDO
 tempo_medio_sem_uso = float(df_filtrado["DIAS_DESDE_ULTIMO"].dropna().mean()) if df_filtrado["DIAS_DESDE_ULTIMO"].notna().any() else 0.0
+
+dias_sem_uso_series = df_filtrado["DIAS_DESDE_ULTIMO"].dropna()
+mediana_sem_uso = float(dias_sem_uso_series.median()) if not dias_sem_uso_series.empty else 0.0
+p90_sem_uso     = float(np.percentile(dias_sem_uso_series, 90)) if not dias_sem_uso_series.empty else 0.0
 
 # Risco de inatividade: sem uso há ≥ 90 dias (NaT conta como risco)
 risco_inatividade_90d = int(
@@ -266,9 +276,31 @@ with d4:
         </div>
     """, unsafe_allow_html=True)
 
+# Linha 3 – estatística de uso (opcional)
+e1, e2 = st.columns(2)
+with e1:
+    st.markdown(f"""
+        <div class="metric-box">
+            <h1>{mediana_sem_uso:.0f} d</h1>
+            <small>Mediana desde o último pedido</small>
+        </div>
+    """, unsafe_allow_html=True)
+
+with e2:
+    st.markdown(f"""
+        <div class="metric-box">
+            <h1>{p90_sem_uso:.0f} d</h1>
+            <small>P90 desde o último pedido</small>
+        </div>
+    """, unsafe_allow_html=True)
+
 # Alerta simples (opcional): muitos inativos
-if total_forn and (risco_inatividade_90d / total_forn) >= 0.3:
-    st.warning(f"Atenção: {risco_inatividade_90d} fornecedores (≈{risco_inatividade_90d/total_forn:.0%}) sem uso há ≥ 90 dias.")
+if total_forn:
+    perc_risco = risco_inatividade_90d / total_forn
+    if perc_risco >= 0.30:
+        st.warning(f"⚠️ {risco_inatividade_90d} fornecedores (≈{perc_risco:.0%}) sem uso há ≥ 90 dias. Avaliar limpeza/reativação.")
+    elif perc_risco >= 0.15:
+        st.info(f"ℹ️ {risco_inatividade_90d} fornecedores (≈{perc_risco:.0%}) sem uso há ≥ 90 dias.")
 
 st.divider()
 
@@ -294,6 +326,14 @@ tabela["Último Pedido"] = pd.to_datetime(tabela["Último Pedido"]).dt.strftime(
 tabela.loc[tabela["Último Pedido"] == "NaT", "Último Pedido"] = ""
 
 st.subheader("Fornecedores (cadastro + último uso)")
+# status amigável
+tabela["Status"] = np.where(
+    (tabela["Último Pedido"] == "") | (pd.to_datetime(tabela["Último Pedido"], format="%d/%m/%Y", errors="coerce") < h90d),
+    "🔴 Inativo (≥90d)",
+    np.where(tabela["Ativo (12m)"], "🟢 Ativo 12m", "🟡 Pouco ativo")
+)
+# reordena colunas
+tabela = tabela[["Razão Social","Nome Fantasia","UF","Data de Cadastro","Último Pedido","Dias desde o Último Pedido","Status","Ativo (12m)"]]
 st.dataframe(tabela, use_container_width=True)
 st.markdown("---")
 
@@ -318,28 +358,48 @@ top10 = (
     .head(10)
 )
 
+st.markdown("### 📍 Distribuição por UF (após filtros)")
+dist_uf = df_filtrado["FORN_UF"].value_counts().reset_index()
+dist_uf.columns = ["UF","Fornecedores"]
+st.bar_chart(dist_uf.set_index("UF"))
+
+st.markdown("### 🧩 Distribuição por Categoria (após filtros)")
+cats = (
+    df_filtrado["CATEGORIAS"].dropna().astype(str).str.split(",").explode().str.strip().replace("", np.nan).dropna()
+)
+dist_cat = cats.value_counts().head(15).reset_index()
+dist_cat.columns = ["Categoria","Fornecedores"]
+st.bar_chart(dist_cat.set_index("Categoria"))
+
 # Plotly
 import plotly.express as px
-fig = px.bar(
-    top10,
-    x="Quantidade de Pedidos",
-    y="FORN_FANTASIA",
-    orientation="h",
-    text="Quantidade de Pedidos",
-    color="Quantidade de Pedidos",
-    color_continuous_scale=["#7FC7FF", "#0066CC"],
-    category_orders={"FORN_FANTASIA": top10["FORN_FANTASIA"].tolist()}
-)
-fig.update_layout(
-    yaxis_title="Fornecedor",
-    xaxis_title="Quantidade de Pedidos",
-    showlegend=False,
-    plot_bgcolor="rgba(0,0,0,0)",
-    paper_bgcolor="rgba(0,0,0,0)",
-    font=dict(color=cor_texto)
-)
-fig.update_traces(textposition="outside")
-st.plotly_chart(fig, use_container_width=True)
+if top10.empty:
+    st.info("Sem pedidos nos últimos 12 meses para o conjunto filtrado.")
+else:
+    fig = px.bar(
+        top10,
+        x="Quantidade de Pedidos",
+        y="FORN_FANTASIA",
+        orientation="h",
+        text="Quantidade de Pedidos",
+        color="Quantidade de Pedidos",
+        color_continuous_scale=["#7FC7FF", "#0066CC"],
+        category_orders={"FORN_FANTASIA": top10["FORN_FANTASIA"].tolist()}
+    )
+    fig.update_traces(
+        hovertemplate="<b>%{y}</b><br>Pedidos: %{x}<extra></extra>",
+        textposition="outside"
+    )
+    fig.update_yaxes(autorange="reversed")
+    fig.update_layout(
+        yaxis_title="Fornecedor",
+        xaxis_title="Quantidade de Pedidos",
+        showlegend=False,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=cor_texto)
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 # =========================
 # Exportar Excel
@@ -350,7 +410,8 @@ def converter_excel(df_export):
         df_export.to_excel(writer, index=False, sheet_name='Fornecedores')
     return output.getvalue()
 
-excel_bytes = converter_excel(tabela)
+tabela_export = tabela.copy()  # antes de formatar datas
+excel_bytes = converter_excel(tabela_export)
 
 st.download_button(
     label="📥 Baixar tabela filtrada (.xlsx)",
