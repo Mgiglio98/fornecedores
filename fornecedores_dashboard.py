@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from io import BytesIO
 from datetime import datetime
+import plotly.express as px
 
 # =========================
 # Tema
@@ -299,25 +300,34 @@ top10 = (
     .head(10)
 )
 
-st.markdown("### 📍 Distribuição por UF (após filtros)")
-alvo = {"RJ","SC","SP"}
-contagem = df_filtrado["FORN_UF"].value_counts(dropna=False)
-
-rj = int(contagem.get("RJ", 0))
-sc = int(contagem.get("SC", 0))
-sp = int(contagem.get("SP", 0))
-outras = int(contagem.drop(list(alvo), errors="ignore").sum())
-
+# dataframe já montado
 df_uf_plot = pd.DataFrame({
     "UF": ["RJ","SC","SP","Outras"],
     "Fornecedores": [rj, sc, sp, outras]
-})
-# opcional: ordenar por valor desc
-df_uf_plot = df_uf_plot.sort_values("Fornecedores", ascending=False)
-st.bar_chart(df_uf_plot.set_index("UF"))
+}).sort_values("Fornecedores", ascending=False)
 
-st.markdown("### 🧩 Distribuição por Categoria (após filtros)")
-cats = (
+fig_uf = px.bar(
+    df_uf_plot,
+    x="Fornecedores",
+    y="UF",
+    orientation="h",
+    text="Fornecedores",
+    color="Fornecedores",
+    color_continuous_scale=["#7FC7FF", "#0066CC"]
+)
+fig_uf.update_traces(textposition="outside")
+fig_uf.update_layout(
+    title="📍 Distribuição por UF (após filtros)",
+    yaxis_title="UF",
+    xaxis_title="Quantidade",
+    showlegend=False,
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
+    font=dict(color=cor_texto)
+)
+st.plotly_chart(fig_uf, use_container_width=True)
+
+dist_cat = (
     df_filtrado["CATEGORIAS"]
     .dropna()
     .astype(str)
@@ -325,14 +335,34 @@ cats = (
     .explode()
     .str.strip()
 )
-cats = cats[cats.ne("")]  # remove vazios
-dist_cat = cats.value_counts().head(15)  # já desc
-# garante ordem desc no gráfico
-st.bar_chart(dist_cat.sort_values(ascending=False).to_frame("Fornecedores"))
+dist_cat = dist_cat[dist_cat.ne("")]
+
+df_cat_plot = dist_cat.value_counts().head(15).reset_index()
+df_cat_plot.columns = ["Categoria", "Fornecedores"]
+
+fig_cat = px.bar(
+    df_cat_plot.sort_values("Fornecedores", ascending=True),  # ascending=True porque inverte no próximo passo
+    x="Fornecedores",
+    y="Categoria",
+    orientation="h",
+    text="Fornecedores",
+    color="Fornecedores",
+    color_continuous_scale=["#7FC7FF", "#0066CC"]
+)
+fig_cat.update_traces(textposition="outside")
+fig_cat.update_layout(
+    title="🧩 Distribuição por Categoria (após filtros)",
+    yaxis_title="Categoria",
+    xaxis_title="Quantidade",
+    showlegend=False,
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
+    font=dict(color=cor_texto)
+)
+st.plotly_chart(fig_cat, use_container_width=True)
 
 st.markdown("### 🏆 Top 10 Fornecedores Mais Utilizados nos Últimos 12 Meses")
-# Plotly
-import plotly.express as px
+
 if top10.empty:
     st.info("Sem pedidos nos últimos 12 meses para o conjunto filtrado.")
 else:
