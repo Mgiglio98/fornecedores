@@ -317,7 +317,6 @@ df_uf_plot = (
 fig_uf = px.bar(
     df_uf_plot.sort_values("Fornecedores", ascending=True),  # menor → maior
     x="Fornecedores", y="UF",
-    orientation="h",
     text="Fornecedores",
     color="Fornecedores",
     color_continuous_scale=["#7FC7FF", "#0066CC"]
@@ -343,14 +342,13 @@ cats = (
         .explode()
         .str.strip()
 )
-cats = cats[cats.ne("")]
+cats = cats[cats.ne("") & cats.ne("NaN")]  # remove vazios e strings "NaN"
 
 # value_counts -> reset_index, renomeando a 1ª coluna de forma robusta
 df_cat_plot = cats.value_counts().reset_index(name="Fornecedores")
 primeira_col = df_cat_plot.columns[0]
 df_cat_plot = df_cat_plot.rename(columns={primeira_col: "Categoria"}).head(15)
 
-import plotly.express as px
 fig_cat = px.bar(
     df_cat_plot.sort_values("Fornecedores", ascending=True),  # menor->maior
     x="Fornecedores",
