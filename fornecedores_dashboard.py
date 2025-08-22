@@ -336,7 +336,7 @@ fig_uf.update_layout(
 st.plotly_chart(fig_uf, use_container_width=True)
 
 # =========================
-# 🧩 Distribuição por Categoria (após filtros) — remove NaN + desc
+# 🧩 Distribuição por Categoria (após filtros) — remove NaN + DESC
 # =========================
 cats = (
     df_filtrado["CATEGORIAS"]
@@ -346,37 +346,40 @@ cats = (
     .explode()
     .str.strip()
 )
+
 # remove vazios e rótulos "NaN"/"nan" que vieram como string
-cats = cats[cats.ne("") & ~cats.str.match(r"(?i)^nan$")]
+cats = cats[ cats.ne("") & ~cats.str.match(r"(?i)^nan$") ]
 
-dist_cat = (
-    cats.value_counts()
-        .reset_index()
-        .rename(columns={"index": "Categoria", "CATEGORIAS": "Fornecedores"})
-)
+# conta e nomeia colunas de forma explícita (evita ValueError do Plotly)
+dist_cat = cats.value_counts().reset_index()
+dist_cat.columns = ["Categoria", "Fornecedores"]
 
-# mantém só top 15 e garante ordem DESC no eixo X
-dist_cat = dist_cat.head(15).sort_values("Fornecedores", ascending=False)
+# top 15 em ordem decrescente
+dist_cat = dist_cat.sort_values("Fornecedores", ascending=False).head(15)
 
-fig_cat = px.bar(
-    dist_cat,
-    x="Categoria",
-    y="Fornecedores",
-    text="Fornecedores",
-    color="Fornecedores",
-    color_continuous_scale=["#7FC7FF", "#0066CC"],
-)
-fig_cat.update_traces(textposition="outside")
-fig_cat.update_layout(
-    xaxis_title="Categoria",
-    yaxis_title="Fornecedores",
-    xaxis=dict(categoryorder="total descending"),  # força DESC
-    showlegend=False,
-    plot_bgcolor="rgba(0,0,0,0)",
-    paper_bgcolor="rgba(0,0,0,0)",
-    font=dict(color=cor_texto),
-)
-st.plotly_chart(fig_cat, use_container_width=True)
+import plotly.express as px
+if dist_cat.empty:
+    st.info("Sem categorias para exibir com os filtros atuais.")
+else:
+    fig_cat = px.bar(
+        dist_cat,
+        x="Categoria",                # barras verticais
+        y="Fornecedores",
+        text="Fornecedores",
+        color="Fornecedores",
+        color_continuous_scale=["#7FC7FF", "#0066CC"],
+    )
+    fig_cat.update_traces(textposition="outside")
+    fig_cat.update_layout(
+        xaxis_title="Categoria",
+        yaxis_title="Fornecedores",
+        xaxis=dict(categoryorder="total descending"),  # força ordem desc no eixo X
+        showlegend=False,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=cor_texto),
+    )
+    st.plotly_chart(fig_cat, use_container_width=True)
 
 st.markdown("### 🏆 Top 10 Fornecedores Mais Utilizados nos Últimos 12 Meses")
 
