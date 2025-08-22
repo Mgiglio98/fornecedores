@@ -300,17 +300,12 @@ top10 = (
     .head(10)
 )
 
-import plotly.express as px
-
 st.markdown("### 📍 Distribuição por UF (após filtros)")
-# conta UFs após filtros
 contagem_uf = df_filtrado["FORN_UF"].value_counts(dropna=False)
 
 rj = int(contagem_uf.get("RJ", 0))
 sc = int(contagem_uf.get("SC", 0))
 sp = int(contagem_uf.get("SP", 0))
-
-# soma do restante (exceto RJ, SC, SP)
 outras = int(contagem_uf.drop(labels=["RJ", "SC", "SP"], errors="ignore").sum())
 
 df_uf_plot = (
@@ -320,21 +315,19 @@ df_uf_plot = (
 )
 
 fig_uf = px.bar(
-    df_uf_plot,
-    x="Fornecedores",
-    y="UF",
+    df_uf_plot.sort_values("Fornecedores", ascending=True),  # menor → maior
+    x="Fornecedores", y="UF",
     orientation="h",
     text="Fornecedores",
     color="Fornecedores",
     color_continuous_scale=["#7FC7FF", "#0066CC"]
 )
+fig_uf.update_yaxes(autorange="reversed")  # exibe como DESC top→down
 fig_uf.update_traces(textposition="outside")
 fig_uf.update_layout(
-    yaxis_title="UF",
-    xaxis_title="Quantidade",
+    yaxis_title="UF", xaxis_title="Quantidade",
     showlegend=False,
-    plot_bgcolor="rgba(0,0,0,0)",
-    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
     font=dict(color=cor_texto)
 )
 st.plotly_chart(fig_uf, use_container_width=True)
@@ -342,38 +335,31 @@ st.plotly_chart(fig_uf, use_container_width=True)
 st.markdown("### 🧩 Distribuição por Categoria (após filtros)")
 cats = (
     df_filtrado["CATEGORIAS"]
-    .dropna()
-    .astype(str)
-    .str.split(",")
-    .explode()
-    .str.strip()
+      .dropna().astype(str).str.split(",").explode().str.strip()
 )
-cats = cats[cats.ne("")]  # remove vazios
+cats = cats[cats.ne("")]
 
 df_cat_plot = (
     cats.value_counts()
-        .reset_index()
-        .rename(columns={"index": "Categoria", "CATEGORIAS": "Fornecedores"})
+        .reset_index(name="Fornecedores")   # ✅ nomeia a contagem corretamente
+        .rename(columns={"index": "Categoria"})
         .head(15)
-        .sort_values("Fornecedores", ascending=False)
 )
 
 fig_cat = px.bar(
-    df_cat_plot.sort_values("Fornecedores", ascending=True),  # plota horizontal do menor p/ maior…
-    x="Fornecedores",
-    y="Categoria",
-    orientation="h",                                        # …e o eixo Y invertido deixa DESC na leitura
+    df_cat_plot.sort_values("Fornecedores", ascending=True),  # menor → maior
+    x="Fornecedores", y="Categoria",
+    orientation="h",
     text="Fornecedores",
     color="Fornecedores",
     color_continuous_scale=["#7FC7FF", "#0066CC"]
 )
+fig_cat.update_yaxes(autorange="reversed")  # exibe como DESC top→down
 fig_cat.update_traces(textposition="outside")
 fig_cat.update_layout(
-    yaxis_title="Categoria",
-    xaxis_title="Quantidade",
+    yaxis_title="Categoria", xaxis_title="Quantidade",
     showlegend=False,
-    plot_bgcolor="rgba(0,0,0,0)",
-    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
     font=dict(color=cor_texto)
 )
 st.plotly_chart(fig_cat, use_container_width=True)
