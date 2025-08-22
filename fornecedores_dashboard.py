@@ -300,11 +300,24 @@ top10 = (
     .head(10)
 )
 
-# dataframe já montado
-df_uf_plot = pd.DataFrame({
-    "UF": ["RJ","SC","SP","Outras"],
-    "Fornecedores": [rj, sc, sp, outras]
-}).sort_values("Fornecedores", ascending=False)
+import plotly.express as px
+
+st.markdown("### 📍 Distribuição por UF (após filtros)")
+# conta UFs após filtros
+contagem_uf = df_filtrado["FORN_UF"].value_counts(dropna=False)
+
+rj = int(contagem_uf.get("RJ", 0))
+sc = int(contagem_uf.get("SC", 0))
+sp = int(contagem_uf.get("SP", 0))
+
+# soma do restante (exceto RJ, SC, SP)
+outras = int(contagem_uf.drop(labels=["RJ", "SC", "SP"], errors="ignore").sum())
+
+df_uf_plot = (
+    pd.DataFrame({"UF": ["RJ", "SC", "SP", "Outras"],
+                  "Fornecedores": [rj, sc, sp, outras]})
+    .sort_values("Fornecedores", ascending=False)
+)
 
 fig_uf = px.bar(
     df_uf_plot,
@@ -317,7 +330,6 @@ fig_uf = px.bar(
 )
 fig_uf.update_traces(textposition="outside")
 fig_uf.update_layout(
-    title="📍 Distribuição por UF (após filtros)",
     yaxis_title="UF",
     xaxis_title="Quantidade",
     showlegend=False,
@@ -327,7 +339,8 @@ fig_uf.update_layout(
 )
 st.plotly_chart(fig_uf, use_container_width=True)
 
-dist_cat = (
+st.markdown("### 🧩 Distribuição por Categoria (após filtros)")
+cats = (
     df_filtrado["CATEGORIAS"]
     .dropna()
     .astype(str)
@@ -335,23 +348,27 @@ dist_cat = (
     .explode()
     .str.strip()
 )
-dist_cat = dist_cat[dist_cat.ne("")]
+cats = cats[cats.ne("")]  # remove vazios
 
-df_cat_plot = dist_cat.value_counts().head(15).reset_index()
-df_cat_plot.columns = ["Categoria", "Fornecedores"]
+df_cat_plot = (
+    cats.value_counts()
+        .reset_index()
+        .rename(columns={"index": "Categoria", "CATEGORIAS": "Fornecedores"})
+        .head(15)
+        .sort_values("Fornecedores", ascending=False)
+)
 
 fig_cat = px.bar(
-    df_cat_plot.sort_values("Fornecedores", ascending=True),  # ascending=True porque inverte no próximo passo
+    df_cat_plot.sort_values("Fornecedores", ascending=True),  # plota horizontal do menor p/ maior…
     x="Fornecedores",
     y="Categoria",
-    orientation="h",
+    orientation="h",                                        # …e o eixo Y invertido deixa DESC na leitura
     text="Fornecedores",
     color="Fornecedores",
     color_continuous_scale=["#7FC7FF", "#0066CC"]
 )
 fig_cat.update_traces(textposition="outside")
 fig_cat.update_layout(
-    title="🧩 Distribuição por Categoria (após filtros)",
     yaxis_title="Categoria",
     xaxis_title="Quantidade",
     showlegend=False,
