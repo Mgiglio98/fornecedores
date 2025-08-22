@@ -332,35 +332,43 @@ fig_uf.update_layout(
 )
 st.plotly_chart(fig_uf, use_container_width=True)
 
+# --- Categorias (Top 15 em ordem decrescente visual) ---
 st.markdown("### 🧩 Distribuição por Categoria (após filtros)")
+
 cats = (
     df_filtrado["CATEGORIAS"]
-      .dropna().astype(str).str.split(",").explode().str.strip()
+        .dropna()
+        .astype(str)
+        .str.split(",")
+        .explode()
+        .str.strip()
 )
 cats = cats[cats.ne("")]
 
-df_cat_plot = (
-    cats.value_counts()
-        .reset_index(name="Fornecedores")   # ✅ nomeia a contagem corretamente
-        .rename(columns={"index": "Categoria"})
-        .head(15)
-)
+# value_counts -> reset_index, renomeando a 1ª coluna de forma robusta
+df_cat_plot = cats.value_counts().reset_index(name="Fornecedores")
+primeira_col = df_cat_plot.columns[0]
+df_cat_plot = df_cat_plot.rename(columns={primeira_col: "Categoria"}).head(15)
 
+import plotly.express as px
 fig_cat = px.bar(
-    df_cat_plot.sort_values("Fornecedores", ascending=True),  # menor → maior
-    x="Fornecedores", y="Categoria",
+    df_cat_plot.sort_values("Fornecedores", ascending=True),  # menor->maior
+    x="Fornecedores",
+    y="Categoria",
     orientation="h",
     text="Fornecedores",
     color="Fornecedores",
     color_continuous_scale=["#7FC7FF", "#0066CC"]
 )
-fig_cat.update_yaxes(autorange="reversed")  # exibe como DESC top→down
+fig_cat.update_yaxes(autorange="reversed")  # aparece como DESC no topo
 fig_cat.update_traces(textposition="outside")
 fig_cat.update_layout(
-    yaxis_title="Categoria", xaxis_title="Quantidade",
+    yaxis_title="Categoria",
+    xaxis_title="Quantidade",
     showlegend=False,
-    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-    font=dict(color=cor_texto)
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
+    font=dict(color=cor_texto),
 )
 st.plotly_chart(fig_cat, use_container_width=True)
 
