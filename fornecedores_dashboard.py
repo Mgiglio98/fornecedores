@@ -301,42 +301,6 @@ top10 = (
     .head(10)
 )
 
-# ordenar fornecedores por quantidade
-pareto = contagens.reset_index()
-pareto.columns = ["Fornecedor", "Pedidos"]
-pareto["Acumulado"] = pareto["Pedidos"].cumsum()
-pareto["% Acumulado"] = pareto["Acumulado"] / pareto["Pedidos"].sum() * 100
-
-fig_pareto = go.Figure()
-
-# barras
-fig_pareto.add_bar(
-    x=pareto["Fornecedor"],
-    y=pareto["Pedidos"],
-    name="Pedidos"
-)
-
-# linha acumulada
-fig_pareto.add_scatter(
-    x=pareto["Fornecedor"],
-    y=pareto["% Acumulado"],
-    mode="lines+markers",
-    name="% Acumulado",
-    yaxis="y2"
-)
-
-# eixo duplo
-fig_pareto.update_layout(
-    title="Pareto de Fornecedores (últimos 12 meses)",
-    yaxis=dict(title="Quantidade de Pedidos"),
-    yaxis2=dict(title="% Acumulado", overlaying="y", side="right", range=[0,100]),
-    xaxis=dict(title="Fornecedor"),
-    shapes=[dict(type="line", x0=0, x1=pareto.shape[0], y0=80, y1=80, 
-                 line=dict(color="red", dash="dash"), yref="y2")]
-)
-
-st.plotly_chart(fig_pareto, use_container_width=True)
-
 # =========================
 # 📍 Distribuição por UF (após filtros) — vertical + desc + "Outras"
 # =========================
