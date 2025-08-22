@@ -300,69 +300,77 @@ top10 = (
     .head(10)
 )
 
-st.markdown("### 📍 Distribuição por UF (após filtros)")
-contagem_uf = df_filtrado["FORN_UF"].value_counts(dropna=False)
+# =========================
+# 📍 Distribuição por UF (após filtros) — vertical + desc + "Outras"
+# =========================
+alvo = {"RJ", "SC", "SP"}
+contagem = df_filtrado["FORN_UF"].value_counts(dropna=False)
 
-rj = int(contagem_uf.get("RJ", 0))
-sc = int(contagem_uf.get("SC", 0))
-sp = int(contagem_uf.get("SP", 0))
-outras = int(contagem_uf.drop(labels=["RJ", "SC", "SP"], errors="ignore").sum())
+rj = int(contagem.get("RJ", 0))
+sc = int(contagem.get("SC", 0))
+sp = int(contagem.get("SP", 0))
+outras = int(contagem.drop(list(alvo), errors="ignore").sum())
 
-df_uf_plot = (
-    pd.DataFrame({"UF": ["RJ", "SC", "SP", "Outras"],
-                  "Fornecedores": [rj, sc, sp, outras]})
-    .sort_values("Fornecedores", ascending=False)
-)
+df_uf_plot = pd.DataFrame(
+    {"UF": ["RJ", "SC", "SP", "Outras"], "Fornecedores": [rj, sc, sp, outras]}
+).sort_values("Fornecedores", ascending=False)
 
+import plotly.express as px
 fig_uf = px.bar(
-    df_uf_plot.sort_values("Fornecedores", ascending=True),  # menor → maior
-    x="Fornecedores", y="UF",
+    df_uf_plot,
+    x="UF",                      # barras VERTICAIS
+    y="Fornecedores",
     text="Fornecedores",
     color="Fornecedores",
-    color_continuous_scale=["#7FC7FF", "#0066CC"]
+    color_continuous_scale=["#7FC7FF", "#0066CC"],
 )
-fig_uf.update_yaxes(autorange="reversed")  # exibe como DESC top→down
 fig_uf.update_traces(textposition="outside")
 fig_uf.update_layout(
-    yaxis_title="UF", xaxis_title="Quantidade",
+    xaxis_title="UF",
+    yaxis_title="Quantidade",
     showlegend=False,
-    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-    font=dict(color=cor_texto)
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
+    font=dict(color=cor_texto),
 )
 st.plotly_chart(fig_uf, use_container_width=True)
 
-# --- Categorias (Top 15 em ordem decrescente visual) ---
-st.markdown("### 🧩 Distribuição por Categoria (após filtros)")
-
+# =========================
+# 🧩 Distribuição por Categoria (após filtros) — remove NaN + desc
+# =========================
 cats = (
     df_filtrado["CATEGORIAS"]
-        .dropna()
-        .astype(str)
-        .str.split(",")
-        .explode()
-        .str.strip()
+    .dropna()
+    .astype(str)
+    .str.split(",")
+    .explode()
+    .str.strip()
 )
-cats = cats[cats.ne("") & cats.ne("NaN")]  # remove vazios e strings "NaN"
+# remove vazios e rótulos "NaN"/"nan" que vieram como string
+cats = cats[cats.ne("") & ~cats.str.match(r"(?i)^nan$")]
 
-# value_counts -> reset_index, renomeando a 1ª coluna de forma robusta
-df_cat_plot = cats.value_counts().reset_index(name="Fornecedores")
-primeira_col = df_cat_plot.columns[0]
-df_cat_plot = df_cat_plot.rename(columns={primeira_col: "Categoria"}).head(15)
+dist_cat = (
+    cats.value_counts()
+        .reset_index()
+        .rename(columns={"index": "Categoria", "CATEGORIAS": "Fornecedores"})
+)
+
+# mantém só top 15 e garante ordem DESC no eixo X
+dist_cat = dist_cat.head(15).sort_values("Fornecedores", ascending=False)
 
 fig_cat = px.bar(
-    df_cat_plot.sort_values("Fornecedores", ascending=True),  # menor->maior
-    x="Fornecedores",
-    y="Categoria",
-    orientation="h",
+    dist_cat,
+    x="Categoria",
+    y="Fornecedores",
     text="Fornecedores",
     color="Fornecedores",
-    color_continuous_scale=["#7FC7FF", "#0066CC"]
+    color_continuous_scale=["#7FC7FF", "#0066CC"],
 )
-fig_cat.update_yaxes(autorange="reversed")  # aparece como DESC no topo
 fig_cat.update_traces(textposition="outside")
 fig_cat.update_layout(
-    yaxis_title="Categoria",
-    xaxis_title="Quantidade",
+    xaxis_title="Categoria",
+    yaxis_title="Fornecedores",
+    xaxis=dict(categoryorder="total descending"),  # força DESC
     showlegend=False,
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)",
