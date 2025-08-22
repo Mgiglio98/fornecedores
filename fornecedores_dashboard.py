@@ -214,85 +214,33 @@ else:
     fornecedores_usados_12m = 0
 
 # =========================
-# KPIs – Linha 1
+# KPIs – Fileira 1 (5 cards)
 # =========================
-c1, c2, c3 = st.columns(3)
-with c1:
-    st.markdown(f"""
-        <div class="metric-box">
-            <h1>{total_forn}</h1>
-            <small>Total de Fornecedores (após filtros)</small>
-        </div>
-    """, unsafe_allow_html=True)
+f1 = st.columns(5)
+with f1[0]:
+    st.markdown(f"""<div class="metric-box"><h1>{total_forn}</h1><small>Total de Fornecedores (após filtros)</small></div>""", unsafe_allow_html=True)
+with f1[1]:
+    st.markdown(f"""<div class="metric-box"><h1>{cadastrados_30d}</h1><small>Cadastrados nos últimos 30 dias</small></div>""", unsafe_allow_html=True)
+with f1[2]:
+    st.markdown(f"""<div class="metric-box"><h1>{usados_12m}</h1><small>Usados nos últimos 12 meses</small></div>""", unsafe_allow_html=True)
+with f1[3]:
+    st.markdown(f"""<div class="metric-box"><h1>{pct_ativos_12m:.0%}</h1><small>% Fornecedores ativos (12m)</small></div>""", unsafe_allow_html=True)
+with f1[4]:
+    st.markdown(f"""<div class="metric-box"><h1>{novos_com_uso_30d}</h1><small>Novos (30d) com uso</small></div>""", unsafe_allow_html=True)
 
-with c2:
-    st.markdown(f"""
-        <div class="metric-box">
-            <h1>{cadastrados_30d}</h1>
-            <small>Cadastrados nos últimos 30 dias</small>
-        </div>
-    """, unsafe_allow_html=True)
-
-with c3:
-    st.markdown(f"""
-        <div class="metric-box">
-            <h1>{usados_12m}</h1>
-            <small>Usados nos últimos 12 meses</small>
-        </div>
-    """, unsafe_allow_html=True)
-
-# KPIs – Linha 2 (novas métricas)
-d1, d2, d3, d4 = st.columns(4)
-with d1:
-    st.markdown(f"""
-        <div class="metric-box">
-            <h1>{pct_ativos_12m:.0%}</h1>
-            <small>% Fornecedores ativos (12m)</small>
-        </div>
-    """, unsafe_allow_html=True)
-
-with d2:
-    st.markdown(f"""
-        <div class="metric-box">
-            <h1>{novos_com_uso_30d}</h1>
-            <small>Novos (30d) com uso</small>
-        </div>
-    """, unsafe_allow_html=True)
-
-with d3:
-    st.markdown(f"""
-        <div class="metric-box">
-            <h1>{tempo_medio_sem_uso:.0f} d</h1>
-            <small>Tempo médio desde o último pedido</small>
-        </div>
-    """, unsafe_allow_html=True)
-
-with d4:
+# =========================
+# KPIs – Fileira 2 (4 cards)
+# =========================
+f2 = st.columns(4)
+with f2[0]:
+    st.markdown(f"""<div class="metric-box"><h1>{tempo_medio_sem_uso:.0f} d</h1><small>Tempo médio desde o último pedido</small></div>""", unsafe_allow_html=True)
+with f2[1]:
     cap_80 = f"{n_fornecedores_para_80}/{fornecedores_usados_12m}" if fornecedores_usados_12m else "0/0"
-    st.markdown(f"""
-        <div class="metric-box">
-            <h1>{cap_80}</h1>
-            <small>Concentração 80% dos pedidos (12m)</small>
-        </div>
-    """, unsafe_allow_html=True)
-
-# Linha 3 – estatística de uso (opcional)
-e1, e2 = st.columns(2)
-with e1:
-    st.markdown(f"""
-        <div class="metric-box">
-            <h1>{mediana_sem_uso:.0f} d</h1>
-            <small>Mediana desde o último pedido</small>
-        </div>
-    """, unsafe_allow_html=True)
-
-with e2:
-    st.markdown(f"""
-        <div class="metric-box">
-            <h1>{p90_sem_uso:.0f} d</h1>
-            <small>P90 desde o último pedido</small>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"""<div class="metric-box"><h1>{cap_80}</h1><small>Concentração 80% dos pedidos (12m)</small></div>""", unsafe_allow_html=True)
+with f2[2]:
+    st.markdown(f"""<div class="metric-box"><h1>{mediana_sem_uso:.0f} d</h1><small>Mediana desde o último pedido</small></div>""", unsafe_allow_html=True)
+with f2[3]:
+    st.markdown(f"""<div class="metric-box"><h1>{p90_sem_uso:.0f} d</h1><small>P90 desde o último pedido</small></div>""", unsafe_allow_html=True)
 
 # Alerta simples (opcional): muitos inativos
 if total_forn:
@@ -326,14 +274,8 @@ tabela["Último Pedido"] = pd.to_datetime(tabela["Último Pedido"]).dt.strftime(
 tabela.loc[tabela["Último Pedido"] == "NaT", "Último Pedido"] = ""
 
 st.subheader("Fornecedores (cadastro + último uso)")
-# status amigável
-tabela["Status"] = np.where(
-    (tabela["Último Pedido"] == "") | (pd.to_datetime(tabela["Último Pedido"], format="%d/%m/%Y", errors="coerce") < h90d),
-    "🔴 Inativo (≥90d)",
-    np.where(tabela["Ativo (12m)"], "🟢 Ativo 12m", "🟡 Pouco ativo")
-)
 # reordena colunas
-tabela = tabela[["Razão Social","Nome Fantasia","UF","Data de Cadastro","Último Pedido","Dias desde o Último Pedido","Status","Ativo (12m)"]]
+tabela = tabela[["Razão Social","Nome Fantasia","UF","Data de Cadastro","Último Pedido","Dias desde o Último Pedido","Ativo (12m)"]]
 st.dataframe(tabela, use_container_width=True)
 st.markdown("---")
 
@@ -359,17 +301,36 @@ top10 = (
 )
 
 st.markdown("### 📍 Distribuição por UF (após filtros)")
-dist_uf = df_filtrado["FORN_UF"].value_counts().reset_index()
-dist_uf.columns = ["UF","Fornecedores"]
-st.bar_chart(dist_uf.set_index("UF"))
+alvo = {"RJ","SC","SP"}
+contagem = df_filtrado["FORN_UF"].value_counts(dropna=False)
+
+rj = int(contagem.get("RJ", 0))
+sc = int(contagem.get("SC", 0))
+sp = int(contagem.get("SP", 0))
+outras = int(contagem.drop(list(alvo), errors="ignore").sum())
+
+df_uf_plot = pd.DataFrame({
+    "UF": ["RJ","SC","SP","Outras"],
+    "Fornecedores": [rj, sc, sp, outras]
+})
+
+# opcional: ordenar por valor desc
+df_uf_plot = df_uf_plot.sort_values("Fornecedores", ascending=False).set_index("UF")
+st.bar_chart(df_uf_plot)
 
 st.markdown("### 🧩 Distribuição por Categoria (após filtros)")
 cats = (
-    df_filtrado["CATEGORIAS"].dropna().astype(str).str.split(",").explode().str.strip().replace("", np.nan).dropna()
+    df_filtrado["CATEGORIAS"]
+    .dropna()
+    .astype(str)
+    .str.split(",")
+    .explode()
+    .str.strip()
 )
-dist_cat = cats.value_counts().head(15).reset_index()
-dist_cat.columns = ["Categoria","Fornecedores"]
-st.bar_chart(dist_cat.set_index("Categoria"))
+cats = cats[cats.ne("")]  # remove vazios
+
+dist_cat = cats.value_counts().head(15)  # já vem desc
+st.bar_chart(dist_cat.to_frame("Fornecedores"))
 
 # Plotly
 import plotly.express as px
