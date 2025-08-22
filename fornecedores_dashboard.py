@@ -282,7 +282,6 @@ st.markdown("---")
 # =========================
 # Top 10 fornecedores (12m) – respeita filtros
 # =========================
-st.markdown("### 🏆 Top 10 Fornecedores Mais Utilizados nos Últimos 12 Meses")
 
 # Pedidos 12m já filtrados por CNPJs da visão
 df_top = ped_12m.merge(
@@ -332,6 +331,7 @@ cats = cats[cats.ne("")]  # remove vazios
 dist_cat = cats.value_counts().head(15)  # já vem desc
 st.bar_chart(dist_cat.to_frame("Fornecedores"))
 
+st.markdown("### 🏆 Top 10 Fornecedores Mais Utilizados nos Últimos 12 Meses")
 # Plotly
 import plotly.express as px
 if top10.empty:
