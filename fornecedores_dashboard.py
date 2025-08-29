@@ -267,7 +267,7 @@ tabela["Último Pedido"] = tabela["Último Pedido"].replace("NaT", "Não utiliza
 
 st.subheader("Fornecedores (cadastro + último uso)")
 # reordena colunas
-tabela = tabela[["Razão Social","Nome Fantasia","UF","Data de Cadastro","Último Pedido","Dias desde o Último Pedido","Ativo (12m)"]]
+tabela = tabela[["Razão Social","Nome Fantasia","UF","Data de Cadastro","Último Pedido","Dias desde o Último Pedido"]]
 st.dataframe(tabela, use_container_width=True)
 st.markdown("---")
 
