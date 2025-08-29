@@ -219,7 +219,7 @@ else:
 
 # KPIs – Fileira 1 (5 cards)
 # =========================
-f1 = st.columns(5)
+f1 = st.columns(6)
 with f1[0]:
     st.markdown(f"""<div class="metric-box"><h1>{total_forn}</h1><small>Total de Fornecedores (após filtros)</small></div>""", unsafe_allow_html=True)
 with f1[1]:
@@ -230,19 +230,9 @@ with f1[3]:
     st.markdown(f"""<div class="metric-box"><h1>{pct_ativos_12m:.0%}</h1><small>% ativos usados (12m)</small></div>""", unsafe_allow_html=True)
 with f1[4]:
     st.markdown(f"""<div class="metric-box"><h1>{novos_com_uso_30d}</h1><small>Novos (30d) com uso</small></div>""", unsafe_allow_html=True)
-
-# KPIs – Fileira 2 (4 cards)
-# =========================
-f2 = st.columns(4)
-with f2[0]:
-    st.markdown(f"""<div class="metric-box"><h1>{tempo_medio_sem_uso:.0f} d</h1><small>Tempo médio desde o último pedido</small></div>""", unsafe_allow_html=True)
-with f2[1]:
+with f1[5]:
     cap_80 = f"{n_fornecedores_para_80}/{fornecedores_usados_12m}" if fornecedores_usados_12m else "0/0"
     st.markdown(f"""<div class="metric-box"><h1>{cap_80}</h1><small>Concentração 80% dos pedidos (12m)</small></div>""", unsafe_allow_html=True)
-with f2[2]:
-    st.markdown(f"""<div class="metric-box"><h1>{mediana_sem_uso:.0f} d</h1><small>Mediana desde o último pedido</small></div>""", unsafe_allow_html=True)
-with f2[3]:
-    st.markdown(f"""<div class="metric-box"><h1>{p90_sem_uso:.0f} d</h1><small>P90 desde o último pedido</small></div>""", unsafe_allow_html=True)
 
 # Alerta simples (opcional): muitos inativos
 if total_forn:
