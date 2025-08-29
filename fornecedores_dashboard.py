@@ -277,13 +277,28 @@ tabela["Data Último Pedido"] = np.where(
 dias = pd.to_numeric(tabela["Dias desde o Último Pedido"], errors="coerce").astype("Int64")
 tabela["Dias desde o Último Pedido"] = dias.astype(str).replace({"<NA>": "—"})
 
-st.subheader("Fornecedores (cadastro + último uso)")
+st.subheader("Fornecedores - Visão Geral")
 tabela = tabela[["Razão Social","Nome Fantasia","UF","Data de Cadastro","Data Último Pedido","Dias desde o Último Pedido"]]
 st.dataframe(tabela, use_container_width=True)
 st.markdown("---")
 
-# Top 10 fornecedores (12m) – respeita filtros
+# Exportar Excel
 # =========================
+def converter_excel(df_export):
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df_export.to_excel(writer, index=False, sheet_name='Fornecedores')
+    return output.getvalue()
+
+tabela_export = tabela.copy()
+excel_bytes = converter_excel(tabela_export)
+
+st.download_button(
+    label="📥 Baixar tabela filtrada (.xlsx)",
+    data=excel_bytes,
+    file_name="fornecedores_filtrados.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
 
 # Pedidos 12m já filtrados por CNPJs da visão
 df_top = ped_12m.merge(
@@ -423,21 +438,3 @@ else:
         font=dict(color=cor_texto),
     )
     st.plotly_chart(fig_cat, use_container_width=True)
-
-# Exportar Excel
-# =========================
-def converter_excel(df_export):
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df_export.to_excel(writer, index=False, sheet_name='Fornecedores')
-    return output.getvalue()
-
-tabela_export = tabela.copy()
-excel_bytes = converter_excel(tabela_export)
-
-st.download_button(
-    label="📥 Baixar tabela filtrada (.xlsx)",
-    data=excel_bytes,
-    file_name="fornecedores_filtrados.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
