@@ -178,11 +178,9 @@ ped_12m_ativos = ped_12m[ped_12m["PED_FORNECEDOR"].isin(ativos_set)].copy()
 # nº de fornecedores ATIVOS usados nos 12m (distintos)
 usados_12m_ativos = int(ped_12m_ativos["PED_FORNECEDOR"].nunique())
 
-# % ativos usados sobre o total de fornecedores ativos
+# % ativos usados (base: total de ATIVOS, não total geral)
 total_ativos = int(df_filtrado["ATIVO_12M"].sum())
 pct_ativos_12m = (usados_12m_ativos / total_ativos) if total_ativos else 0.0
-
-pct_ativos_12m = (usados_12m / total_forn) if total_forn else 0.0
 
 # Novos com uso (30 dias): cadastrados nos últimos 30 dias E com pelo menos 1 pedido em qualquer data
 novos_com_uso_30d = int(
@@ -192,9 +190,8 @@ novos_com_uso_30d = int(
     ].nunique()
 )
 
-# Tempo médio desde o último pedido (dias) – considera apenas quem tem ULTIMO_PEDIDO
+# Tempo desde último pedido (dias)
 tempo_medio_sem_uso = float(df_filtrado["DIAS_DESDE_ULTIMO"].dropna().mean()) if df_filtrado["DIAS_DESDE_ULTIMO"].notna().any() else 0.0
-
 dias_sem_uso_series = df_filtrado["DIAS_DESDE_ULTIMO"].dropna()
 mediana_sem_uso = float(dias_sem_uso_series.median()) if not dias_sem_uso_series.empty else 0.0
 p90_sem_uso     = float(np.percentile(dias_sem_uso_series, 90)) if not dias_sem_uso_series.empty else 0.0
@@ -226,9 +223,9 @@ with f1[0]:
 with f1[1]:
     st.markdown(f"""<div class="metric-box"><h1>{cadastrados_30d}</h1><small>Cadastrados nos últimos 30 dias</small></div>""", unsafe_allow_html=True)
 with f1[2]:
-    st.markdown(f"""<div class="metric-box"><h1>{usados_12m_ativos}</h1><small>Fornecedores ATIVOS usados (12m)</small></div>""",unsafe_allow_html=True)
+    st.markdown(f"""<div class="metric-box"><h1>{usados_12m_ativos}</h1><small>Fornecedores ATIVOS usados (12m)</small></div>""", unsafe_allow_html=True)
 with f1[3]:
-    st.markdown(f"""<div class="metric-box"><h1>{pct_ativos_12m:.0%}</h1><small>% Fornecedores ativos (12m)</small></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="metric-box"><h1>{pct_ativos_12m:.0%}</h1><small>% ativos usados (12m)</small></div>""", unsafe_allow_html=True)
 with f1[4]:
     st.markdown(f"""<div class="metric-box"><h1>{novos_com_uso_30d}</h1><small>Novos (30d) com uso</small></div>""", unsafe_allow_html=True)
 
