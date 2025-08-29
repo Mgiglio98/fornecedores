@@ -64,12 +64,8 @@ df, df_pedidos = carregar_dados()
 df["FORN_RAZAO"] = df["FORN_RAZAO"].astype(str).str.strip()
 df["FORN_FANTASIA"] = df["FORN_FANTASIA"].astype(str).str.strip()
 df["CATEGORIAS"] = df["CATEGORIAS"].astype(str).str.upper().str.strip()
-df_pedidos["PED_FORNECEDOR"] = df_pedidos["PED_FORNECEDOR"].astype(str)
 df["FORN_DTCADASTRO"] = pd.to_datetime(df["FORN_DTCADASTRO"], errors="coerce")
 df["FORN_CNPJ"] = df["FORN_CNPJ"].astype(str).str.replace(r"\D", "", regex=True).str.zfill(14)
-df["CNPJ_FORMATADO"] = df["FORN_CNPJ"].str.replace(
-    r"(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})", r"\1.\2.\3/\4-\5", regex=True
-)
 df["FORN_UF"] = df["FORN_UF"].astype(str).str.upper().str.strip()
 
 df_pedidos["PED_DT"] = pd.to_datetime(df_pedidos["PED_DT"], errors="coerce")
@@ -155,9 +151,6 @@ ped_12m = df_pedidos[
     (df_pedidos["PED_DT"] >= h12m)
 ].copy()
 
-# Flag ativos 12m (com base em ULTIMO_PEDIDO >= h12m)
-df_filtrado["ATIVO_12M"] = df_filtrado["ULTIMO_PEDIDO"].ge(h12m)
-
 # Dias desde último pedido (NaT -> NaN)
 df_filtrado["DIAS_DESDE_ULTIMO"] = (hoje - df_filtrado["ULTIMO_PEDIDO"]).dt.days
 
@@ -168,15 +161,6 @@ total_forn = int(df_filtrado["FORN_CNPJ"].nunique())
 cadastrados_30d = int(
     df_filtrado.loc[df_filtrado["FORN_DTCADASTRO"].ge(h30d), "FORN_CNPJ"].nunique()
 )
-
-# --- Base "ativa" (12m) para contagens baseadas em pedidos ---
-ativos_set = set(df_filtrado.loc[df_filtrado["ATIVO_12M"], "FORN_CNPJ"].astype(str))
-
-# pedidos nos 12m feitos para fornecedores ATIVOS
-ped_12m_ativos = ped_12m[ped_12m["PED_FORNECEDOR"].isin(ativos_set)].copy()
-
-# nº de fornecedores ATIVOS usados nos 12m (distintos)
-usados_12m_ativos = int(ped_12m_ativos["PED_FORNECEDOR"].nunique())
 
 # nº de fornecedores (ativos do sistema) usados nos 12m
 usados_12m_ativos = int(ped_12m["PED_FORNECEDOR"].nunique())
@@ -217,7 +201,7 @@ else:
     n_fornecedores_para_80 = 0
     fornecedores_usados_12m = 0
 
-# KPIs – Fileira 1 (5 cards)
+# KPIs – Fileira 1 (6 cards)
 # =========================
 f1 = st.columns(6)
 with f1[0]:
@@ -294,7 +278,7 @@ tabela_export = tabela.copy()
 excel_bytes = converter_excel(tabela_export)
 
 st.download_button(
-    label="📥 Baixar tabela filtrada (.xlsx)",
+    label="📥 Baixar tabela em Excel",
     data=excel_bytes,
     file_name="fornecedores_filtrados.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -356,7 +340,7 @@ else:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-# 📍 Distribuição por UF (após filtros) — vertical + desc + "Outras"
+# 📍 Distribuição por UF (após filtros)
 # =========================
 st.markdown("### 📍 Distribuição por UF")
 alvo = {"RJ", "SC", "SP"}
@@ -390,7 +374,7 @@ fig_uf.update_layout(
 )
 st.plotly_chart(fig_uf, use_container_width=True)
 
-# 🧩 Distribuição por Categoria (após filtros) — remove NaN + DESC
+# 🧩 Distribuição por Categoria (após filtros)
 # =========================
 st.markdown("### 🧩 Distribuição por Categoria")
 cats = (
