@@ -227,9 +227,9 @@ with f1[1]:
 with f1[2]:
     st.markdown(f"""<div class="metric-box"><h1>{usados_12m_ativos}</h1><small>Fornecedores Utilizados (12m)</small></div>""", unsafe_allow_html=True)
 with f1[3]:
-    st.markdown(f"""<div class="metric-box"><h1>{pct_ativos_12m:.0%}</h1><small>% Fornecedores utilizados (12m)</small></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="metric-box"><h1>{pct_ativos_12m:.0%}</h1><small>% Fornecedores Utilizados (12m)</small></div>""", unsafe_allow_html=True)
 with f1[4]:
-    st.markdown(f"""<div class="metric-box"><h1>{novos_com_uso_30d}</h1><small>Fornecedores Novos Utilziados</small></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="metric-box"><h1>{novos_com_uso_30d}</h1><small>Fornecedores Novos Utilizados</small></div>""", unsafe_allow_html=True)
 with f1[5]:
     cap_80 = f"{n_fornecedores_para_80}/{fornecedores_usados_12m}" if fornecedores_usados_12m else "0/0"
     st.markdown(f"""<div class="metric-box"><h1>{cap_80}</h1><small>Concentração 80% dos pedidos (12m)</small></div>""", unsafe_allow_html=True)
@@ -415,7 +415,7 @@ else:
         categoryorder="total ascending"  # garante maior em cima
     )
     fig_cat.update_layout(
-        xaxis_title="Fornecedores",
+        xaxis_title="Total de Fornecedores",
         yaxis_title="Categoria",
         showlegend=False,
         plot_bgcolor="rgba(0,0,0,0)",
