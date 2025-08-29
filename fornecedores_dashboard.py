@@ -257,16 +257,27 @@ tabela = df_filtrado[[
     "FORN_DTCADASTRO": "Data de Cadastro",
     "ULTIMO_PEDIDO": "Último Pedido",
     "DIAS_DESDE_ULTIMO": "Dias desde o Último Pedido"
-})
+}).copy()
 
-tabela["Data de Cadastro"] = pd.to_datetime(tabela["Data de Cadastro"]).dt.strftime('%d/%m/%Y')
-tabela["Último Pedido"] = pd.to_datetime(tabela["Último Pedido"]).dt.strftime('%d/%m/%Y')
+# Formata cadastro
+tabela["Data de Cadastro"] = pd.to_datetime(tabela["Data de Cadastro"], errors="coerce").dt.strftime("%d/%m/%Y")
 
-# Substituir "NaT" por mensagem mais clara
-tabela["Último Pedido"] = tabela["Último Pedido"].replace("NaT", "Não utilizado nos últimos 12 meses")
+# Regra de "não utilizado nos últimos 12 meses"
+mask_sem_uso = df_filtrado["ULTIMO_PEDIDO"].isna() | (df_filtrado["ULTIMO_PEDIDO"] < h12m)
+
+# Formata "Último Pedido": data se usou em 12m, texto se não usou
+ult = pd.to_datetime(tabela["Último Pedido"], errors="coerce")
+tabela["Último Pedido"] = np.where(
+    mask_sem_uso.values,
+    "Não utilizado nos últimos 12 meses",
+    ult.dt.strftime("%d/%m/%Y")
+)
+
+# "Dias desde o Último Pedido": número ou "—" quando não tem registro
+dias = pd.to_numeric(tabela["Dias desde o Último Pedido"], errors="coerce").astype("Int64")
+tabela["Dias desde o Último Pedido"] = dias.astype(str).replace({"<NA>": "—"})
 
 st.subheader("Fornecedores (cadastro + último uso)")
-# reordena colunas
 tabela = tabela[["Razão Social","Nome Fantasia","UF","Data de Cadastro","Último Pedido","Dias desde o Último Pedido"]]
 st.dataframe(tabela, use_container_width=True)
 st.markdown("---")
