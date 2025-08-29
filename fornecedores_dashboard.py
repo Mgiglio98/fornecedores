@@ -266,8 +266,8 @@ tabela["Data de Cadastro"] = pd.to_datetime(tabela["Data de Cadastro"], errors="
 mask_sem_uso = df_filtrado["ULTIMO_PEDIDO"].isna() | (df_filtrado["ULTIMO_PEDIDO"] < h12m)
 
 # Formata "Último Pedido": data se usou em 12m, texto se não usou
-ult = pd.to_datetime(tabela["Último Pedido"], errors="coerce")
-tabela["Último Pedido"] = np.where(
+ult = pd.to_datetime(tabela["Data Último Pedido"], errors="coerce")
+tabela["Data Último Pedido"] = np.where(
     mask_sem_uso.values,
     "Não utilizado nos últimos 12 meses",
     ult.dt.strftime("%d/%m/%Y")
@@ -278,7 +278,7 @@ dias = pd.to_numeric(tabela["Dias desde o Último Pedido"], errors="coerce").ast
 tabela["Dias desde o Último Pedido"] = dias.astype(str).replace({"<NA>": "—"})
 
 st.subheader("Fornecedores (cadastro + último uso)")
-tabela = tabela[["Razão Social","Nome Fantasia","UF","Data de Cadastro","Último Pedido","Dias desde o Último Pedido"]]
+tabela = tabela[["Razão Social","Nome Fantasia","UF","Data de Cadastro","Data Último Pedido","Dias desde o Último Pedido"]]
 st.dataframe(tabela, use_container_width=True)
 st.markdown("---")
 
