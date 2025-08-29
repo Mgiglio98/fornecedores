@@ -169,17 +169,19 @@ cadastrados_30d = int(
     df_filtrado.loc[df_filtrado["FORN_DTCADASTRO"].ge(h30d), "FORN_CNPJ"].nunique()
 )
 
-usados_12m = int(
-    df_filtrado.loc[df_filtrado["ATIVO_12M"], "FORN_CNPJ"].nunique()
-    # --- Base "ativa" (12m) para contagens baseadas em pedidos ---
-    ativos_set = set(df_filtrado.loc[df_filtrado["ATIVO_12M"], "FORN_CNPJ"].astype(str))
-    
-    # pedidos nos 12m feitos para fornecedores ATIVOS
-    ped_12m_ativos = ped_12m[ped_12m["PED_FORNECEDOR"].isin(ativos_set)].copy()
-    
-    # nº de fornecedores ATIVOS usados nos 12m (distintos)
-    usados_12m_ativos = int(ped_12m_ativos["PED_FORNECEDOR"].nunique())
-)
+# --- Base "ativa" (12m) para contagens baseadas em pedidos ---
+ativos_set = set(df_filtrado.loc[df_filtrado["ATIVO_12M"], "FORN_CNPJ"].astype(str))
+
+# pedidos nos 12m feitos para fornecedores ATIVOS
+ped_12m_ativos = ped_12m[ped_12m["PED_FORNECEDOR"].isin(ativos_set)].copy()
+
+# nº de fornecedores ATIVOS usados nos 12m (distintos)
+usados_12m_ativos = int(ped_12m_ativos["PED_FORNECEDOR"].nunique())
+
+# % ativos usados sobre o total de fornecedores ativos
+total_ativos = int(df_filtrado["ATIVO_12M"].sum())
+pct_ativos_12m = (usados_12m_ativos / total_ativos) if total_ativos else 0.0
+
 pct_ativos_12m = (usados_12m / total_forn) if total_forn else 0.0
 
 # Novos com uso (30 dias): cadastrados nos últimos 30 dias E com pelo menos 1 pedido em qualquer data
