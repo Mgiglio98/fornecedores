@@ -385,6 +385,13 @@ st.markdown("### 🏆 Top 10 Fornecedores Mais Utilizados nos Últimos 12 Meses"
 if top10.empty:
     st.info("Sem pedidos nos últimos 12 meses para o conjunto filtrado.")
 else:
+    # 1) Ordena do MAIOR -> MENOR e reseta índice
+    top10 = top10.sort_values("Quantidade de Pedidos", ascending=False).reset_index(drop=True)
+
+    # 2) Eixo Y como CATEGÓRICO ORDENADO na MESMA ordem do DataFrame
+    ordem_y = top10["FORN_FANTASIA"].tolist()
+    top10["FORN_FANTASIA"] = pd.Categorical(top10["FORN_FANTASIA"], categories=ordem_y, ordered=True)
+
     fig = px.bar(
         top10,
         x="Quantidade de Pedidos",
@@ -393,19 +400,16 @@ else:
         text="Quantidade de Pedidos",
         color="Quantidade de Pedidos",
         color_continuous_scale=["#7FC7FF", "#0066CC"],
-        category_orders={"FORN_FANTASIA": top10["FORN_FANTASIA"].tolist()}
     )
+
     fig.update_traces(
         hovertemplate="<b>%{y}</b><br>Pedidos: %{x}<extra></extra>",
         textposition="outside"
     )
 
-    # 🔑 força a ordem no eixo Y (de cima para baixo) conforme o DataFrame
-    fig.update_yaxes(
-        categoryorder="array",
-        categoryarray=top10["FORN_FANTASIA"].tolist()
-    )
-    
+    # 3) Força o Plotly a usar a ordem da categoria (sem reverse, sem alphabetical)
+    fig.update_yaxes(categoryorder="category ascending")
+
     fig.update_layout(
         yaxis_title="Fornecedor",
         xaxis_title="Quantidade de Pedidos",
