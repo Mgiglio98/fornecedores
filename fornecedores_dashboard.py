@@ -408,7 +408,7 @@ else:
     )
 
     # 3) Força o Plotly a usar a ordem da categoria (sem reverse, sem alphabetical)
-    fig.update_yaxes(categoryorder="category descending")
+    fig.update_yaxes(categoryorder="total descending")
 
     fig.update_layout(
         yaxis_title="Fornecedor",
