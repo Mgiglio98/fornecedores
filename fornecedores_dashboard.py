@@ -221,15 +221,15 @@ else:
 # =========================
 f1 = st.columns(6)
 with f1[0]:
-    st.markdown(f"""<div class="metric-box"><h1>{total_forn}</h1><small>Total de Fornecedores (após filtros)</small></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="metric-box"><h1>{total_forn}</h1><small>Total de Fornecedores Ativos</small></div>""", unsafe_allow_html=True)
 with f1[1]:
     st.markdown(f"""<div class="metric-box"><h1>{cadastrados_30d}</h1><small>Cadastrados nos últimos 30 dias</small></div>""", unsafe_allow_html=True)
 with f1[2]:
-    st.markdown(f"""<div class="metric-box"><h1>{usados_12m_ativos}</h1><small>Fornecedores ATIVOS usados (12m)</small></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="metric-box"><h1>{usados_12m_ativos}</h1><small>Fornecedores Utilizados (12m)</small></div>""", unsafe_allow_html=True)
 with f1[3]:
-    st.markdown(f"""<div class="metric-box"><h1>{pct_ativos_12m:.0%}</h1><small>% ativos usados (12m)</small></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="metric-box"><h1>{pct_ativos_12m:.0%}</h1><small>% Fornecedores utilizados (12m)</small></div>""", unsafe_allow_html=True)
 with f1[4]:
-    st.markdown(f"""<div class="metric-box"><h1>{novos_com_uso_30d}</h1><small>Novos (30d) com uso</small></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="metric-box"><h1>{novos_com_uso_30d}</h1><small>Fornecedores Novos Utilziados</small></div>""", unsafe_allow_html=True)
 with f1[5]:
     cap_80 = f"{n_fornecedores_para_80}/{fornecedores_usados_12m}" if fornecedores_usados_12m else "0/0"
     st.markdown(f"""<div class="metric-box"><h1>{cap_80}</h1><small>Concentração 80% dos pedidos (12m)</small></div>""", unsafe_allow_html=True)
@@ -238,7 +238,7 @@ with f1[5]:
 if total_forn:
     perc_risco = risco_inatividade_90d / total_forn
     if perc_risco >= 0.30:
-        st.warning(f"⚠️ {risco_inatividade_90d} fornecedores (≈{perc_risco:.0%}) sem uso há ≥ 90 dias. Avaliar limpeza/reativação.")
+        st.warning(f"⚠️ {risco_inatividade_90d} fornecedores (≈{perc_risco:.0%}) sem uso há ≥ 90 dias.")
     elif perc_risco >= 0.15:
         st.info(f"ℹ️ {risco_inatividade_90d} fornecedores (≈{perc_risco:.0%}) sem uso há ≥ 90 dias.")
 
@@ -255,7 +255,7 @@ tabela = df_filtrado[[
     "FORN_FANTASIA": "Nome Fantasia",
     "FORN_UF": "UF",
     "FORN_DTCADASTRO": "Data de Cadastro",
-    "ULTIMO_PEDIDO": "Último Pedido",
+    "ULTIMO_PEDIDO": "Data Último Pedido",
     "DIAS_DESDE_ULTIMO": "Dias desde o Último Pedido"
 }).copy()
 
@@ -301,86 +301,7 @@ top10 = (
     .head(10)
 )
 
-# 📍 Distribuição por UF (após filtros) — vertical + desc + "Outras"
-# =========================
-st.markdown("### 📍 Distribuição por UF (após filtros)")
-alvo = {"RJ", "SC", "SP"}
-contagem = df_filtrado["FORN_UF"].value_counts(dropna=False)
-
-rj = int(contagem.get("RJ", 0))
-sc = int(contagem.get("SC", 0))
-sp = int(contagem.get("SP", 0))
-outras = int(contagem.drop(list(alvo), errors="ignore").sum())
-
-df_uf_plot = pd.DataFrame(
-    {"UF": ["RJ", "SC", "SP", "Outras"], "Fornecedores": [rj, sc, sp, outras]}
-).sort_values("Fornecedores", ascending=False)
-
-fig_uf = px.bar(
-    df_uf_plot,
-    x="UF",                    
-    y="Fornecedores",
-    text="Fornecedores",
-    color="Fornecedores",
-    color_continuous_scale=["#7FC7FF", "#0066CC"],
-)
-fig_uf.update_traces(textposition="outside")
-fig_uf.update_layout(
-    xaxis_title="UF",
-    yaxis_title="Quantidade",
-    showlegend=False,
-    plot_bgcolor="rgba(0,0,0,0)",
-    paper_bgcolor="rgba(0,0,0,0)",
-    font=dict(color=cor_texto),
-)
-st.plotly_chart(fig_uf, use_container_width=True)
-
-# 🧩 Distribuição por Categoria (após filtros) — remove NaN + DESC
-# =========================
-st.markdown("### 🧩 Distribuição por Categoria (após filtros)")
-cats = (
-    df_filtrado["CATEGORIAS"]
-    .dropna()
-    .astype(str)
-    .str.split(",")
-    .explode()
-    .str.strip()
-)
-
-# remove vazios e rótulos "NaN"/"nan" que vieram como string
-cats = cats[ cats.ne("") & ~cats.str.match(r"(?i)^nan$") ]
-
-# conta e nomeia colunas de forma explícita (evita ValueError do Plotly)
-dist_cat = cats.value_counts().reset_index()
-dist_cat.columns = ["Categoria", "Fornecedores"]
-
-# top 15 em ordem decrescente
-dist_cat = dist_cat.sort_values("Fornecedores", ascending=False).head(15)
-
-if dist_cat.empty:
-    st.info("Sem categorias para exibir com os filtros atuais.")
-else:
-    fig_cat = px.bar(
-        dist_cat,
-        x="Categoria",
-        y="Fornecedores",
-        text="Fornecedores",
-        color="Fornecedores",
-        color_continuous_scale=["#7FC7FF", "#0066CC"],
-    )
-    fig_cat.update_traces(textposition="outside")
-    fig_cat.update_layout(
-        xaxis_title="Categoria",
-        yaxis_title="Fornecedores",
-        xaxis=dict(categoryorder="total descending"),
-        showlegend=False,
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(color=cor_texto),
-    )
-    st.plotly_chart(fig_cat, use_container_width=True)
-
-st.markdown("### 🏆 Top 10 Fornecedores Mais Utilizados nos Últimos 12 Meses")
+st.markdown("### 🏆 Top 10 Fornecedores dos Últimos 12 Meses")
 
 if top10.empty:
     st.info("Sem pedidos nos últimos 12 meses para o conjunto filtrado.")
@@ -419,6 +340,89 @@ else:
         font=dict(color=cor_texto)
     )
     st.plotly_chart(fig, use_container_width=True)
+
+# 📍 Distribuição por UF (após filtros) — vertical + desc + "Outras"
+# =========================
+st.markdown("### 📍 Distribuição por UF")
+alvo = {"RJ", "SC", "SP"}
+contagem = df_filtrado["FORN_UF"].value_counts(dropna=False)
+
+rj = int(contagem.get("RJ", 0))
+sc = int(contagem.get("SC", 0))
+sp = int(contagem.get("SP", 0))
+outras = int(contagem.drop(list(alvo), errors="ignore").sum())
+
+df_uf_plot = pd.DataFrame(
+    {"UF": ["RJ", "SC", "SP", "Outras"], "Fornecedores": [rj, sc, sp, outras]}
+).sort_values("Fornecedores", ascending=False)
+
+fig_uf = px.bar(
+    df_uf_plot,
+    x="UF",                    
+    y="Fornecedores",
+    text="Fornecedores",
+    color="Fornecedores",
+    color_continuous_scale=["#7FC7FF", "#0066CC"],
+)
+fig_uf.update_traces(textposition="outside")
+fig_uf.update_layout(
+    xaxis_title="UF",
+    yaxis_title="Total de Fornecedores",
+    showlegend=False,
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
+    font=dict(color=cor_texto),
+)
+st.plotly_chart(fig_uf, use_container_width=True)
+
+# 🧩 Distribuição por Categoria (após filtros) — remove NaN + DESC
+# =========================
+st.markdown("### 🧩 Distribuição por Categoria")
+cats = (
+    df_filtrado["CATEGORIAS"]
+    .dropna()
+    .astype(str)
+    .str.split(",")
+    .explode()
+    .str.strip()
+)
+
+# remove vazios e rótulos "NaN"/"nan" que vieram como string
+cats = cats[cats.ne("") & ~cats.str.match(r"(?i)^nan$")]
+
+# conta e nomeia colunas de forma explícita
+dist_cat = cats.value_counts().reset_index()
+dist_cat.columns = ["Categoria", "Fornecedores"]
+
+# top 15
+dist_cat = dist_cat.sort_values("Fornecedores", ascending=False).head(15)
+
+if dist_cat.empty:
+    st.info("Sem categorias para exibir com os filtros atuais.")
+else:
+    # gráfico horizontal
+    fig_cat = px.bar(
+        dist_cat,
+        x="Fornecedores",
+        y="Categoria",
+        orientation="h",
+        text="Fornecedores",
+        color="Fornecedores",
+        color_continuous_scale=["#7FC7FF", "#0066CC"],
+    )
+    fig_cat.update_traces(textposition="outside")
+    fig_cat.update_yaxes(
+        categoryorder="total ascending"  # garante maior em cima
+    )
+    fig_cat.update_layout(
+        xaxis_title="Fornecedores",
+        yaxis_title="Categoria",
+        showlegend=False,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=cor_texto),
+    )
+    st.plotly_chart(fig_cat, use_container_width=True)
 
 # Exportar Excel
 # =========================
