@@ -399,7 +399,13 @@ else:
         hovertemplate="<b>%{y}</b><br>Pedidos: %{x}<extra></extra>",
         textposition="outside"
     )
-    fig.update_yaxes(autorange="reversed")
+
+    # 🔑 força a ordem no eixo Y (de cima para baixo) conforme o DataFrame
+    fig.update_yaxes(
+        categoryorder="array",
+        categoryarray=top10["FORN_FANTASIA"].tolist()
+    )
+    
     fig.update_layout(
         yaxis_title="Fornecedor",
         xaxis_title="Quantidade de Pedidos",
