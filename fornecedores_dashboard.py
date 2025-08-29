@@ -4,9 +4,7 @@ import numpy as np
 from io import BytesIO
 from datetime import datetime
 import plotly.express as px
-import plotly.graph_objects as go
 
-# =========================
 # Tema
 # =========================
 def tema_escuro_ativo():
@@ -50,7 +48,6 @@ st.markdown(f"""
 st.markdown("<h1 style='text-align: center;'>📦 Painel de Fornecedores Ativos</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# =========================
 # Carregar dados
 # =========================
 @st.cache_data(ttl=900)
@@ -61,7 +58,6 @@ def carregar_dados():
 
 df, df_pedidos = carregar_dados()
 
-# =========================
 # Tratamento / normalização
 # =========================
 # chaves/strings estáveis
@@ -86,7 +82,6 @@ ult = (df_pedidos.dropna(subset=["PED_DT"])
 
 df = df.merge(ult, how="left", on="FORN_CNPJ")
 
-# =========================
 # Filtros
 # =========================
 col1, col2, col3 = st.columns(3)
@@ -144,7 +139,6 @@ if data_ini and data_fim:
 if st.button("🔄 Resetar filtros"):
     st.rerun()
 
-# =========================
 # Janelas de tempo (hoje, 12m, 30d, 90d)
 # =========================
 hoje = pd.Timestamp.today().normalize()
@@ -167,7 +161,6 @@ df_filtrado["ATIVO_12M"] = df_filtrado["ULTIMO_PEDIDO"].ge(h12m)
 # Dias desde último pedido (NaT -> NaN)
 df_filtrado["DIAS_DESDE_ULTIMO"] = (hoje - df_filtrado["ULTIMO_PEDIDO"]).dt.days
 
-# =========================
 # Métricas
 # =========================
 total_forn = int(df_filtrado["FORN_CNPJ"].nunique())
@@ -215,7 +208,6 @@ else:
     n_fornecedores_para_80 = 0
     fornecedores_usados_12m = 0
 
-# =========================
 # KPIs – Fileira 1 (5 cards)
 # =========================
 f1 = st.columns(5)
@@ -230,7 +222,6 @@ with f1[3]:
 with f1[4]:
     st.markdown(f"""<div class="metric-box"><h1>{novos_com_uso_30d}</h1><small>Novos (30d) com uso</small></div>""", unsafe_allow_html=True)
 
-# =========================
 # KPIs – Fileira 2 (4 cards)
 # =========================
 f2 = st.columns(4)
@@ -254,7 +245,6 @@ if total_forn:
 
 st.divider()
 
-# =========================
 # Tabela principal
 # =========================
 df_filtrado = df_filtrado.sort_values(by="FORN_DTCADASTRO", ascending=False)
@@ -281,7 +271,6 @@ tabela = tabela[["Razão Social","Nome Fantasia","UF","Data de Cadastro","Últim
 st.dataframe(tabela, use_container_width=True)
 st.markdown("---")
 
-# =========================
 # Top 10 fornecedores (12m) – respeita filtros
 # =========================
 
@@ -301,7 +290,6 @@ top10 = (
     .head(10)
 )
 
-# =========================
 # 📍 Distribuição por UF (após filtros) — vertical + desc + "Outras"
 # =========================
 st.markdown("### 📍 Distribuição por UF (após filtros)")
@@ -317,10 +305,9 @@ df_uf_plot = pd.DataFrame(
     {"UF": ["RJ", "SC", "SP", "Outras"], "Fornecedores": [rj, sc, sp, outras]}
 ).sort_values("Fornecedores", ascending=False)
 
-import plotly.express as px
 fig_uf = px.bar(
     df_uf_plot,
-    x="UF",                      # barras VERTICAIS
+    x="UF",                    
     y="Fornecedores",
     text="Fornecedores",
     color="Fornecedores",
@@ -337,7 +324,6 @@ fig_uf.update_layout(
 )
 st.plotly_chart(fig_uf, use_container_width=True)
 
-# =========================
 # 🧩 Distribuição por Categoria (após filtros) — remove NaN + DESC
 # =========================
 st.markdown("### 🧩 Distribuição por Categoria (após filtros)")
@@ -360,13 +346,12 @@ dist_cat.columns = ["Categoria", "Fornecedores"]
 # top 15 em ordem decrescente
 dist_cat = dist_cat.sort_values("Fornecedores", ascending=False).head(15)
 
-import plotly.express as px
 if dist_cat.empty:
     st.info("Sem categorias para exibir com os filtros atuais.")
 else:
     fig_cat = px.bar(
         dist_cat,
-        x="Categoria",                # barras verticais
+        x="Categoria",
         y="Fornecedores",
         text="Fornecedores",
         color="Fornecedores",
@@ -376,7 +361,7 @@ else:
     fig_cat.update_layout(
         xaxis_title="Categoria",
         yaxis_title="Fornecedores",
-        xaxis=dict(categoryorder="total descending"),  # força ordem desc no eixo X
+        xaxis=dict(categoryorder="total descending"),
         showlegend=False,
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
@@ -414,7 +399,6 @@ else:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-# =========================
 # Exportar Excel
 # =========================
 def converter_excel(df_export):
@@ -423,7 +407,7 @@ def converter_excel(df_export):
         df_export.to_excel(writer, index=False, sheet_name='Fornecedores')
     return output.getvalue()
 
-tabela_export = tabela.copy()  # antes de formatar datas
+tabela_export = tabela.copy()
 excel_bytes = converter_excel(tabela_export)
 
 st.download_button(
