@@ -249,20 +249,21 @@ st.divider()
 df_filtrado = df_filtrado.sort_values(by="FORN_DTCADASTRO", ascending=False)
 
 tabela = df_filtrado[[
-    "FORN_RAZAO", "FORN_FANTASIA", "FORN_UF", "FORN_DTCADASTRO", "ULTIMO_PEDIDO", "DIAS_DESDE_ULTIMO", "ATIVO_12M"
+    "FORN_RAZAO", "FORN_FANTASIA", "FORN_UF", "FORN_DTCADASTRO", "ULTIMO_PEDIDO", "DIAS_DESDE_ULTIMO"
 ]].rename(columns={
     "FORN_RAZAO": "Razão Social",
     "FORN_FANTASIA": "Nome Fantasia",
     "FORN_UF": "UF",
     "FORN_DTCADASTRO": "Data de Cadastro",
     "ULTIMO_PEDIDO": "Último Pedido",
-    "DIAS_DESDE_ULTIMO": "Dias desde o Último Pedido",
-    "ATIVO_12M": "Ativo (12m)"
+    "DIAS_DESDE_ULTIMO": "Dias desde o Último Pedido"
 })
 
 tabela["Data de Cadastro"] = pd.to_datetime(tabela["Data de Cadastro"]).dt.strftime('%d/%m/%Y')
 tabela["Último Pedido"] = pd.to_datetime(tabela["Último Pedido"]).dt.strftime('%d/%m/%Y')
-tabela.loc[tabela["Último Pedido"] == "NaT", "Último Pedido"] = ""
+
+# Substituir "NaT" por mensagem mais clara
+tabela["Último Pedido"] = tabela["Último Pedido"].replace("NaT", "Não utilizado nos últimos 12 meses")
 
 st.subheader("Fornecedores (cadastro + último uso)")
 # reordena colunas
