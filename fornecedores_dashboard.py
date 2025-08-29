@@ -171,6 +171,14 @@ cadastrados_30d = int(
 
 usados_12m = int(
     df_filtrado.loc[df_filtrado["ATIVO_12M"], "FORN_CNPJ"].nunique()
+    # --- Base "ativa" (12m) para contagens baseadas em pedidos ---
+    ativos_set = set(df_filtrado.loc[df_filtrado["ATIVO_12M"], "FORN_CNPJ"].astype(str))
+    
+    # pedidos nos 12m feitos para fornecedores ATIVOS
+    ped_12m_ativos = ped_12m[ped_12m["PED_FORNECEDOR"].isin(ativos_set)].copy()
+    
+    # nº de fornecedores ATIVOS usados nos 12m (distintos)
+    usados_12m_ativos = int(ped_12m_ativos["PED_FORNECEDOR"].nunique())
 )
 pct_ativos_12m = (usados_12m / total_forn) if total_forn else 0.0
 
@@ -216,7 +224,7 @@ with f1[0]:
 with f1[1]:
     st.markdown(f"""<div class="metric-box"><h1>{cadastrados_30d}</h1><small>Cadastrados nos últimos 30 dias</small></div>""", unsafe_allow_html=True)
 with f1[2]:
-    st.markdown(f"""<div class="metric-box"><h1>{usados_12m}</h1><small>Usados nos últimos 12 meses</small></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="metric-box"><h1>{usados_12m_ativos}</h1><small>Fornecedores ATIVOS usados (12m)</small></div>""",unsafe_allow_html=True)
 with f1[3]:
     st.markdown(f"""<div class="metric-box"><h1>{pct_ativos_12m:.0%}</h1><small>% Fornecedores ativos (12m)</small></div>""", unsafe_allow_html=True)
 with f1[4]:
