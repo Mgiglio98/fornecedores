@@ -47,6 +47,10 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 st.markdown("<h1 style='text-align: center;'>📦 Painel de Fornecedores Ativos</h1>", unsafe_allow_html=True)
+st.markdown(
+    "<p style='text-align: center; font-size:18px; color:gray;'>Visão consolidada dos fornecedorescadastrados e ativos no sistema e sua utilização com base nas requisições previamente criadas</p>",
+    unsafe_allow_html=True
+)
 st.markdown("---")
 
 # =========================
