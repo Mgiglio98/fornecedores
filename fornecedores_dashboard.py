@@ -58,7 +58,7 @@ st.markdown("---")
 # =========================
 @st.cache_data(ttl=900)
 def carregar_dados():
-    df_forn = pd.read_excel("FornecedoresAtivos.xlsx", sheet_name=0)
+    df_forn = pd.read_excel("Fornecedores.xlsx", sheet_name=0)
     # Base consolidada com 10 anos
     df_ind = pd.read_excel("total_indicadores.xlsx", sheet_name=0)
     return df_forn, df_ind
