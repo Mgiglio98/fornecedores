@@ -58,12 +58,9 @@ st.markdown("---")
 # =========================
 @st.cache_data(ttl=900)
 def carregar_dados():
-    df_forn = pd.read_excel("Fornecedores.xlsx", sheet_name=0)
-    # Base consolidada com 10 anos
-    df_ind = pd.read_excel("total_indicadores.xlsx", sheet_name=0)
-    return df_forn, df_ind
+    return pd.read_excel("AnaliseFornecedores.xlsx", sheet_name=0)
 
-df, df_ind = carregar_dados()
+df = carregar_dados()
 
 # =========================
 # Janela de tempo (mantendo comportamento de 12 meses)
@@ -73,36 +70,17 @@ h12m = hoje - pd.DateOffset(months=12)
 h30d = hoje - pd.Timedelta(days=30)
 h90d = hoje - pd.Timedelta(days=90)
 
-# Normalização total_indicadores
-df_ind["FORNECEDOR_CDG"] = (
-    df_ind["FORNECEDOR_CDG"]
-    .astype(str)
-    .str.replace(r"\D", "", regex=True)
-    .str.zfill(14)
-)
-df_ind["OF_DATA"] = pd.to_datetime(df_ind["OF_DATA"], errors="coerce")
-
-# Recorte de 12 meses (para todos os indicadores que dependem de tempo recente)
-df_ind_12m = df_ind[df_ind["OF_DATA"] >= h12m].copy()
-
 # =========================
-# Tratamento / normalização (FornecedoresAtivos)
+# Tratamento / normalização
 # =========================
 df["FORN_RAZAO"] = df["FORN_RAZAO"].astype(str).str.strip()
 df["FORN_FANTASIA"] = df["FORN_FANTASIA"].astype(str).str.strip()
 df["CATEGORIAS"] = df["CATEGORIAS"].astype(str).str.upper().str.strip()
 df["FORN_DTCADASTRO"] = pd.to_datetime(df["FORN_DTCADASTRO"], errors="coerce")
-df["FORN_CNPJ"] = df["FORN_CNPJ"].astype(str).str.replace(r"\D", "", regex=True).str.zfill(14)
+df["FORN_CNPJ"] = df["FORN_CNPJ"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
 df["FORN_UF"] = df["FORN_UF"].astype(str).str.upper().str.strip()
-
-# Último pedido (OF) por fornecedor considerando toda a série (para saber a data real mais recente)
-ult = (
-    df_ind.dropna(subset=["OF_DATA"])
-          .groupby("FORNECEDOR_CDG", as_index=False)["OF_DATA"]
-          .max()
-          .rename(columns={"FORNECEDOR_CDG": "FORN_CNPJ", "OF_DATA": "ULTIMO_PEDIDO"})
-)
-df = df.merge(ult, how="left", on="FORN_CNPJ")
+df["ULTIMO_PEDIDO"] = pd.to_datetime(df["ULTIMO_PEDIDO"], errors="coerce")
+df["QTD_OFS_12M"] = pd.to_numeric(df["QTD_OFS_12M"], errors="coerce").fillna(0).astype(int)
 
 # =========================
 # Filtros
@@ -162,12 +140,6 @@ if data_ini and data_fim:
 if st.button("🔄 Resetar filtros"):
     st.rerun()
 
-# Universo de fornecedores filtrados (para cruzar com total_indicadores)
-cnpjs_filtrados = set(df_filtrado["FORN_CNPJ"].astype(str))
-
-# OFs nos últimos 12m (recorte) para o universo filtrado
-of_12m = df_ind_12m[df_ind_12m["FORNECEDOR_CDG"].isin(cnpjs_filtrados)].copy()
-
 # Dias desde último pedido (NaT -> NaN)
 df_filtrado["DIAS_DESDE_ULTIMO"] = (hoje - df_filtrado["ULTIMO_PEDIDO"]).dt.days
 
@@ -180,18 +152,19 @@ cadastrados_30d = int(
     df_filtrado.loc[df_filtrado["FORN_DTCADASTRO"].ge(h30d), "FORN_CNPJ"].nunique()
 )
 
-# nº de fornecedores usados nos 12m (base: total_indicadores 12m)
-usados_12m_ativos = int(of_12m["FORNECEDOR_CDG"].nunique())
+# nº de fornecedores usados nos últimos 12 meses
+usados_12m_ativos = int(
+    df_filtrado.loc[df_filtrado["QTD_OFS_12M"].gt(0), "FORN_CNPJ"].nunique()
+)
 
 # % dos ATIVOS (da planilha) que foram usados nos últimos 12 meses
 pct_ativos_12m = (usados_12m_ativos / total_forn) if total_forn else 0.0
 
 # Novos com uso (30 dias): cadastrados nos últimos 30 dias E com pelo menos 1 OF nos últimos 12 meses
-tem_of_12m = set(df_ind_12m["FORNECEDOR_CDG"].unique())
 novos_com_uso_30d = int(
     df_filtrado.loc[
         df_filtrado["FORN_DTCADASTRO"].ge(h30d) &
-        df_filtrado["FORN_CNPJ"].astype(str).isin(tem_of_12m),
+        df_filtrado["QTD_OFS_12M"].gt(0),
         "FORN_CNPJ"
     ].nunique()
 )
@@ -212,9 +185,9 @@ risco_inatividade_90d = int(
 
 # Concentração 80/20 (Pareto por nº de OFs distintas nos últimos 12 meses)
 contagens = (
-    of_12m.groupby("FORNECEDOR_CDG")["OF_CDG"]
-          .nunique()
-          .sort_values(ascending=False)
+    df_filtrado.loc[df_filtrado["QTD_OFS_12M"].gt(0)]
+               .set_index("FORN_CNPJ")["QTD_OFS_12M"]
+               .sort_values(ascending=False)
 )
 total_of_12m = int(contagens.sum())
 if total_of_12m > 0:
@@ -314,19 +287,12 @@ st.download_button(
 # =========================
 # Top 10 Fornecedores (12m) – por nº de OFs distintas
 # =========================
-df_top = of_12m.merge(
-    df[["FORN_CNPJ", "FORN_FANTASIA"]],
-    left_on="FORNECEDOR_CDG",
-    right_on="FORN_CNPJ",
-    how="left"
-)
-
 top10 = (
-    df_top.groupby("FORN_FANTASIA", dropna=False)["OF_CDG"]
-          .nunique()
-          .reset_index(name="Quantidade de OFs")
-          .sort_values(by="Quantidade de OFs", ascending=False)
-          .head(10)
+    df_filtrado.loc[df_filtrado["QTD_OFS_12M"].gt(0),
+                    ["FORN_CNPJ", "FORN_FANTASIA", "QTD_OFS_12M"]]
+               .rename(columns={"QTD_OFS_12M": "Quantidade de OFs"})
+               .nlargest(10, "Quantidade de OFs")
+               .copy()
 )
 
 st.markdown("### 🏆 Top 10 Fornecedores dos Últimos 12 Meses (por OFs)")
@@ -334,13 +300,21 @@ if top10.empty:
     st.info("Sem OFs nos últimos 12 meses para o conjunto filtrado.")
 else:
     top10 = top10.sort_values("Quantidade de OFs", ascending=False).reset_index(drop=True)
-    ordem_y = top10["FORN_FANTASIA"].tolist()
-    top10["FORN_FANTASIA"] = pd.Categorical(top10["FORN_FANTASIA"], categories=ordem_y, ordered=True)
+    nomes_duplicados = top10["FORN_FANTASIA"].duplicated(keep=False)
+    top10["FORNECEDOR_EXIBICAO"] = top10["FORN_FANTASIA"]
+    top10.loc[nomes_duplicados, "FORNECEDOR_EXIBICAO"] = (
+        top10.loc[nomes_duplicados, "FORN_FANTASIA"]
+        + " (" + top10.loc[nomes_duplicados, "FORN_CNPJ"] + ")"
+    )
+    ordem_y = top10["FORNECEDOR_EXIBICAO"].tolist()
+    top10["FORNECEDOR_EXIBICAO"] = pd.Categorical(
+        top10["FORNECEDOR_EXIBICAO"], categories=ordem_y, ordered=True
+    )
 
     fig = px.bar(
         top10,
         x="Quantidade de OFs",
-        y="FORN_FANTASIA",
+        y="FORNECEDOR_EXIBICAO",
         orientation="h",
         text="Quantidade de OFs",
         color="Quantidade de OFs",
